@@ -185,3 +185,52 @@ Key metric: share of cards created/updated **by Claude** — proves the automati
 3. **Local server + UI** — port the prototype to the API, live updates.
 4. **Dogfood 1–2 weeks** on my projects (Looper, NehoRace, AgentLens, News Heatmap); tune the rules.
 5. **Site + sign-up + analytics**, then invite testers.
+
+---
+
+## 9. Phase 5 detail — site, sign-up, analytics
+
+Goal: a public site where people sign up, plus usage analytics. We store **no user content** — only an account and anonymous events.
+
+**Site** (Next.js on Vercel, e.g. `looseends.dev`)
+- Landing: what it is, privacy promise ("your code and plans never leave your machine"), 3 install steps each with its own copy button:
+  ```
+  /plugin marketplace add <github-user>/loose-ends
+  /plugin install loose-ends@loose-ends
+  /board login
+  ```
+- Sign-up / sign-in with Google and GitHub via a hosted auth provider (Clerk or Auth.js). No passwords.
+- `/app`: the hosted UI. Fetches data **only** from `http://localhost:4747`. Local server sends CORS + Private Network Access headers; bundled UI stays as fallback (Safari).
+- `/privacy`: exactly what is and isn't collected.
+
+**`/board login` — device-code flow**
+1. CLI requests a code from the site API, opens `looseends.dev/link?code=XXXX`
+2. User signs in and approves
+3. CLI polls, receives a token, stores it in `~/.loose-ends/auth.json`
+`board logout` removes it. Everything works without login; events are then anonymous (install id).
+
+**Analytics** (PostHog, EU region): see section 7. Sent from the local server and CLI. `board telemetry off` disables all; mention it on first run.
+
+**Our database — only:** `users(id, email, name, created_at)`, `device_links(code, user_id, token_hash, created_at)`.
+
+**Accounts Aviv creates manually** (ask for keys when needed): GitHub repo, Vercel, Clerk, PostHog, domain.
+
+---
+
+## 10. UI detail
+
+The prototype (`prototype/loose-ends.html`) is the reference; this section describes it.
+
+**Layout** — Left sidebar 232px, dark navy `#0B1220`: logo; "All projects" with parked-count pill; project list (colored 2-letter key badge, parked pill, thin progress bar); "+" to add a project (name + folder). Below 760px it collapses to icons with a dot for projects with parked work. Main: `#EDF1F7` with a faint 24px blueprint grid, white surfaces, accent `#2F5BFF`. Fonts: Bricolage Grotesque / IBM Plex Sans / IBM Plex Mono. Light + dark mode.
+
+**Header** — Project: key badge + path, name, search, "board.json" (raw file), "+ New feature". All projects: "All features" + "N loose ends across M projects". Summary strip (% complete, stacked status bar, counts). Status chips with counts. View bar: Table | Board | Timeline + Group by (Status/Project/Nothing), Density, Columns menu, Hide done (remembered per browser).
+
+**Table** (default) — Key (opens card) · Project (All view) · Feature · Status · Next step / where stopped · Progress · Steps · Files · Updated · Last by. Cell borders, sortable headers, group rows with count + avg progress. Title/status/note edited in place (save on blur/Enter); status → Parked with empty note focuses the note. Parked rows: amber left stripe; Done: struck title. Persistent add-row at top (project, title, status, next step; Enter adds and keeps focus). Double-click row opens card.
+
+**Board** — 5 columns; cards show title, note ("Next:"/"Stopped:"), progress, key, age, who. Parked = amber tint + dashed border. Drag between columns; drop into Parked opens the card with note focused.
+
+**Timeline** — last 14 days; bar from created → last update (active → now), colored by status; parked get a dashed amber "idle Nd" line to today; ideas are hollow dots; "now" line; legend.
+
+**Card drawer** — key + project, editable title, progress; status buttons; note (label by status, amber when parked); steps checklist + add; "Continue with Claude" (hand-off prompt in a dialog with Copy); files; activity log; Delete / Save; Esc closes.
+
+**Status colors** — idea `#8391A7`, active `#0B93B5`, parked `#D2780A`, review `#7B5CE0`, done `#1E9E68`. Parked > 3 days shows age in amber.
