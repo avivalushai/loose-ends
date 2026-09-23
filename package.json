@@ -1,0 +1,24 @@
+{
+  "name": "loose-ends",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A feature board Claude keeps for you while you build.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "board": "cli/dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p cli",
+    "typecheck": "tsc -p cli --noEmit",
+    "test": "vitest run",
+    "board": "node cli/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  }
+}

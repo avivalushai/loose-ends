@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "Loose Ends",
+    "key": "LE"
+  },
+  "settings": {
+    "granularity": "normal"
+  },
+  "nextNum": 6,
+  "features": [
+    {
+      "key": "LE-1",
+      "title": "The board CLI and data model",
+      "type": "chore",
+      "status": "review",
+      "note": "Run board list / add / park / context here and see if the output reads right",
+      "doneWhen": [
+        "Every command in SPEC §4 (except ui/login/telemetry) works against a temp project",
+        "board.json round-trips through validation and migrations",
+        "This repo tracks its own build in .board/board.json"
+      ],
+      "steps": [
+        {
+          "text": "board.json schema + validator",
+          "done": true
+        },
+        {
+          "text": "schemaVersion migrations",
+          "done": true
+        },
+        {
+          "text": "project registry in ~/.loose-ends",
+          "done": true
+        },
+        {
+          "text": "CLI commands from SPEC §4",
+          "done": true
+        },
+        {
+          "text": "tests for every command",
+          "done": true
+        }
+      ],
+      "files": [
+        "cli/src/cli.ts",
+        "cli/src/commands.ts",
+        "cli/src/context.ts",
+        "cli/src/features.ts",
+        "cli/src/fsutil.ts",
+        "cli/src/index.ts",
+        "cli/src/migrations.ts",
+        "cli/src/registry.ts",
+        "cli/src/schema.ts",
+        "cli/src/store.ts",
+        "cli/test/cards.test.ts",
+        "cli/test/helpers.ts",
+        "cli/test/init-registry.test.ts",
+        "cli/test/schema.test.ts",
+        "cli/test/store-cli.test.ts",
+        "cli/test/touch-context.test.ts",
+        "package.json"
+      ],
+      "createdAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Created — active"
+        },
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Step done: board.json schema + validator"
+        },
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Step done: schemaVersion migrations"
+        },
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Step done: project registry in ~/.loose-ends"
+        },
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Step done: CLI commands from SPEC §4"
+        },
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Step done: tests for every command"
+        },
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Moved to review — Run board list / add / park / context here and see if the output reads right"
+        }
+      ]
+    },
+    {
+      "key": "LE-2",
+      "title": "The Claude Code plugin: skill, hooks, commands",
+      "type": "chore",
+      "status": "idea",
+      "note": "Check the current plugin docs for exact manifest and hook formats before writing any file",
+      "doneWhen": [
+        "Installing the plugin makes Claude keep this board without being asked"
+      ],
+      "steps": [
+        {
+          "text": "Plugin + marketplace manifests",
+          "done": false
+        },
+        {
+          "text": "SKILL.md rules from SPEC §5",
+          "done": false
+        },
+        {
+          "text": "SessionStart / PostToolUse / Stop hooks",
+          "done": false
+        },
+        {
+          "text": "Slash commands",
+          "done": false
+        },
+        {
+          "text": "Install on a real project",
+          "done": false
+        }
+      ],
+      "files": [],
+      "createdAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Created"
+        }
+      ]
+    },
+    {
+      "key": "LE-3",
+      "title": "Local server and the web UI",
+      "type": "feature",
+      "status": "idea",
+      "note": "Port prototype/loose-ends.html from localStorage to the server API",
+      "doneWhen": [
+        "board ui opens the board in a browser and it updates live as Claude writes"
+      ],
+      "steps": [
+        {
+          "text": "HTTP API from SPEC §6",
+          "done": false
+        },
+        {
+          "text": "File watcher + SSE",
+          "done": false
+        },
+        {
+          "text": "UI reads and writes through the API",
+          "done": false
+        },
+        {
+          "text": "board ui command",
+          "done": false
+        }
+      ],
+      "files": [],
+      "createdAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Created"
+        }
+      ]
+    },
+    {
+      "key": "LE-4",
+      "title": "Dogfood on my own projects for 1–2 weeks",
+      "type": "chore",
+      "status": "idea",
+      "note": "Install on Looper, NehoRace, AgentLens, News Heatmap and tune the skill rules",
+      "doneWhen": [
+        "Cards Claude created match what I actually worked on"
+      ],
+      "steps": [],
+      "files": [],
+      "createdAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Created"
+        }
+      ]
+    },
+    {
+      "key": "LE-5",
+      "title": "Site, sign-up and analytics",
+      "type": "feature",
+      "status": "idea",
+      "note": "Needs accounts first: GitHub repo, Vercel, Clerk or Auth.js, PostHog EU, domain",
+      "doneWhen": [
+        "Someone can sign up and install the plugin from the site"
+      ],
+      "steps": [
+        {
+          "text": "Landing page + privacy page",
+          "done": false
+        },
+        {
+          "text": "Sign-up with Google/GitHub",
+          "done": false
+        },
+        {
+          "text": "board login device-code flow",
+          "done": false
+        },
+        {
+          "text": "Anonymous events",
+          "done": false
+        }
+      ],
+      "files": [],
+      "createdAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-23T13:02:51Z",
+          "by": "claude",
+          "text": "Created"
+        }
+      ]
+    }
+  ]
+}
