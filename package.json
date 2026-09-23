@@ -8,16 +8,18 @@
     "node": ">=20"
   },
   "bin": {
-    "board": "cli/dist/index.js"
+    "board": "bin/board.mjs"
   },
   "scripts": {
-    "build": "tsc -p cli",
+    "build": "tsc -p cli && npm run bundle",
+    "bundle": "esbuild cli/src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=bin/board.mjs --log-level=warning && chmod +x bin/board.mjs",
     "typecheck": "tsc -p cli --noEmit",
     "test": "vitest run",
-    "board": "node cli/dist/index.js"
+    "board": "node bin/board.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",
+    "esbuild": "^0.24.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
   }

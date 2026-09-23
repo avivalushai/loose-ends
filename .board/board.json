@@ -106,8 +106,8 @@
       "key": "LE-2",
       "title": "The Claude Code plugin: skill, hooks, commands",
       "type": "chore",
-      "status": "idea",
-      "note": "Check the current plugin docs for exact manifest and hook formats before writing any file",
+      "status": "active",
+      "note": "Verifying plugin file formats against the current docs before writing anything",
       "doneWhen": [
         "Installing the plugin makes Claude keep this board without being asked"
       ],
@@ -135,13 +135,18 @@
       ],
       "files": [],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:09:43Z",
       "updatedBy": "claude",
       "log": [
         {
           "at": "2026-09-23T13:02:51Z",
           "by": "claude",
           "text": "Created"
+        },
+        {
+          "at": "2026-09-23T13:09:43Z",
+          "by": "claude",
+          "text": "Started — Verifying plugin file formats against the current docs before writing anything"
         }
       ]
     },
