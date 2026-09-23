@@ -1,0 +1,14 @@
+{
+  "name": "loose-ends",
+  "description": "The Loose Ends plugin.",
+  "owner": { "name": "Aviv Alush" },
+  "plugins": [
+    {
+      "name": "loose-ends",
+      "source": "./",
+      "description": "A feature board Claude keeps for you while you build.",
+      "category": "Project management",
+      "keywords": ["board", "features", "parked"]
+    }
+  ]
+}

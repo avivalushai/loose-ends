@@ -6,17 +6,32 @@ import { describe, expect, it } from "vitest";
 import { sandbox } from "./helpers.js";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const bin = path.join(repo, "bin/board.mjs");
+const bin = path.join(repo, "bin/board");
+const bundle = path.join(repo, "bin/board.cjs");
 
-// The plugin ships this single bundled file, not cli/src — so it gets its own end-to-end test.
-describe("bundled bin/board.mjs", () => {
+// The plugin ships these files, not cli/src — so they get their own end-to-end test.
+describe("bundled bin/board", () => {
   const run = (args: string[], cwd: string, env: NodeJS.ProcessEnv) =>
     execFileSync(bin, args, { cwd, env: { ...process.env, ...env }, encoding: "utf8" });
 
-  it("exists, is executable, and has a shebang", () => {
-    expect(fs.existsSync(bin)).toBe(true);
-    expect(fs.readFileSync(bin, "utf8").startsWith("#!/usr/bin/env node")).toBe(true);
-    fs.accessSync(bin, fs.constants.X_OK);
+  it("ships an executable wrapper and a CommonJS bundle", () => {
+    for (const f of [bin, bundle]) {
+      expect(fs.existsSync(f), f).toBe(true);
+      fs.accessSync(f, fs.constants.X_OK);
+    }
+    // .cjs so it stays CommonJS whatever package.json sits next to the installed plugin
+    expect(fs.readFileSync(bin, "utf8")).toContain('exec node "$(dirname "$0")/board.cjs"');
+    expect(fs.readFileSync(bundle, "utf8").startsWith("#!/usr/bin/env node")).toBe(true);
+  });
+
+  it("works when the plugin puts bin/ on PATH", () => {
+    const sb = sandbox();
+    const out = execFileSync("board", ["--version"], {
+      cwd: sb.root,
+      env: { ...process.env, ...sb.env, PATH: `${path.join(repo, "bin")}:${process.env.PATH}` },
+      encoding: "utf8",
+    });
+    expect(out.trim()).toBe("0.1.0");
   });
 
   it("runs a real init → add → context cycle in a temp project", () => {
@@ -30,8 +45,8 @@ describe("bundled bin/board.mjs", () => {
   });
 
   it("is up to date with cli/src", () => {
-    const built = fs.readFileSync(bin, "utf8");
+    const built = fs.readFileSync(bundle, "utf8");
     execFileSync("npm", ["run", "bundle"], { cwd: repo, encoding: "utf8" });
-    expect(fs.readFileSync(bin, "utf8")).toBe(built); // stale bundle → run `npm run build`
+    expect(fs.readFileSync(bundle, "utf8")).toBe(built); // stale bundle → run `npm run build`
   });
 });

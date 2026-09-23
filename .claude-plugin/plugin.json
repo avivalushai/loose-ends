@@ -1,0 +1,10 @@
+{
+  "name": "loose-ends",
+  "displayName": "Loose Ends",
+  "description": "A feature board Claude keeps for you while you build — per project, updated automatically, with everything you left halfway front and center.",
+  "version": "0.1.0",
+  "author": { "name": "Aviv Alush" },
+  "license": "MIT",
+  "keywords": ["board", "features", "tracking", "parked", "handoff"],
+  "hooks": "./hooks/hooks.json"
+}

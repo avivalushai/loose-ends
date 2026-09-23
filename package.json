@@ -8,14 +8,14 @@
     "node": ">=20"
   },
   "bin": {
-    "board": "bin/board.mjs"
+    "board": "bin/board"
   },
   "scripts": {
     "build": "tsc -p cli && npm run bundle",
-    "bundle": "esbuild cli/src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=bin/board.mjs --log-level=warning && chmod +x bin/board.mjs",
+    "bundle": "esbuild cli/src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/board.cjs --log-level=warning && chmod +x bin/board bin/board.cjs",
     "typecheck": "tsc -p cli --noEmit",
     "test": "vitest run",
-    "board": "node bin/board.mjs"
+    "board": "node bin/board"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

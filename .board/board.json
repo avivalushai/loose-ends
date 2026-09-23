@@ -106,36 +106,51 @@
       "key": "LE-2",
       "title": "The Claude Code plugin: skill, hooks, commands",
       "type": "chore",
-      "status": "active",
-      "note": "Verifying plugin file formats against the current docs before writing anything",
+      "status": "review",
+      "note": "Install it here (/plugin marketplace add this folder) and see whether the board updates itself without being asked",
       "doneWhen": [
         "Installing the plugin makes Claude keep this board without being asked"
       ],
       "steps": [
         {
           "text": "Plugin + marketplace manifests",
-          "done": false
+          "done": true
         },
         {
           "text": "SKILL.md rules from SPEC §5",
-          "done": false
+          "done": true
         },
         {
           "text": "SessionStart / PostToolUse / Stop hooks",
-          "done": false
+          "done": true
         },
         {
           "text": "Slash commands",
-          "done": false
+          "done": true
         },
         {
           "text": "Install on a real project",
           "done": false
         }
       ],
-      "files": [],
+      "files": [
+        ".claude-plugin/plugin.json",
+        ".claude-plugin/marketplace.json",
+        "skills/loose-ends/SKILL.md",
+        "hooks/hooks.json",
+        "hooks/lib.mjs",
+        "hooks/session-start.mjs",
+        "hooks/post-tool-use.mjs",
+        "hooks/stop.mjs",
+        "commands/board.md",
+        "commands/park.md",
+        "commands/done.md",
+        "bin/board",
+        "bin/board.cjs",
+        "cli/test/plugin.test.ts"
+      ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:09:43Z",
+      "updatedAt": "2026-09-23T13:17:26Z",
       "updatedBy": "claude",
       "log": [
         {
@@ -147,6 +162,31 @@
           "at": "2026-09-23T13:09:43Z",
           "by": "claude",
           "text": "Started — Verifying plugin file formats against the current docs before writing anything"
+        },
+        {
+          "at": "2026-09-23T13:17:26Z",
+          "by": "claude",
+          "text": "Step done: Plugin + marketplace manifests"
+        },
+        {
+          "at": "2026-09-23T13:17:26Z",
+          "by": "claude",
+          "text": "Step done: SKILL.md rules from SPEC §5"
+        },
+        {
+          "at": "2026-09-23T13:17:26Z",
+          "by": "claude",
+          "text": "Step done: SessionStart / PostToolUse / Stop hooks"
+        },
+        {
+          "at": "2026-09-23T13:17:26Z",
+          "by": "claude",
+          "text": "Step done: Slash commands"
+        },
+        {
+          "at": "2026-09-23T13:17:26Z",
+          "by": "claude",
+          "text": "Moved to review — Install it here (/plugin marketplace add this folder) and see whether the board updates itself without being asked"
         }
       ]
     },

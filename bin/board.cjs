@@ -1,19 +1,42 @@
 #!/usr/bin/env node
+"use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 
 // cli/src/cli.ts
-import path6 from "node:path";
-import { parseArgs } from "node:util";
+var import_node_path6 = __toESM(require("node:path"), 1);
+var import_node_util = require("node:util");
 
 // cli/src/commands.ts
-import fs4 from "node:fs";
-import path5 from "node:path";
+var import_node_fs4 = __toESM(require("node:fs"), 1);
+var import_node_path5 = __toESM(require("node:path"), 1);
 
 // cli/src/context.ts
-import os from "node:os";
-import path from "node:path";
+var import_node_os = __toESM(require("node:os"), 1);
+var import_node_path = __toESM(require("node:path"), 1);
 var UserError = class extends Error {
 };
-var homeDir = (ctx) => ctx.env.LOOSE_ENDS_HOME || path.join(os.homedir(), ".loose-ends");
+var homeDir = (ctx) => ctx.env.LOOSE_ENDS_HOME || import_node_path.default.join(import_node_os.default.homedir(), ".loose-ends");
 var nowIso = (ctx) => {
   const pinned = ctx.env.LOOSE_ENDS_NOW;
   return (pinned ? new Date(pinned) : /* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -94,13 +117,13 @@ function ageLabel(ctx, iso) {
 }
 
 // cli/src/fsutil.ts
-import fs from "node:fs";
-import path2 from "node:path";
+var import_node_fs = __toESM(require("node:fs"), 1);
+var import_node_path2 = __toESM(require("node:path"), 1);
 function writeFileAtomic(file, data) {
-  fs.mkdirSync(path2.dirname(file), { recursive: true });
+  import_node_fs.default.mkdirSync(import_node_path2.default.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmp, data);
-  fs.renameSync(tmp, file);
+  import_node_fs.default.writeFileSync(tmp, data);
+  import_node_fs.default.renameSync(tmp, file);
 }
 function writeJsonAtomic(file, value) {
   writeFileAtomic(file, JSON.stringify(value, null, 2) + "\n");
@@ -108,16 +131,16 @@ function writeJsonAtomic(file, value) {
 var sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 function withLock(lockPath, fn, { timeoutMs = 3e3, staleMs = 1e4 } = {}) {
   const start = Date.now();
-  fs.mkdirSync(path2.dirname(lockPath), { recursive: true });
+  import_node_fs.default.mkdirSync(import_node_path2.default.dirname(lockPath), { recursive: true });
   for (; ; ) {
     try {
-      fs.mkdirSync(lockPath);
+      import_node_fs.default.mkdirSync(lockPath);
       break;
     } catch (e) {
       if (e.code !== "EEXIST") throw e;
       try {
-        if (Date.now() - fs.statSync(lockPath).mtimeMs > staleMs) {
-          fs.rmSync(lockPath, { recursive: true, force: true });
+        if (Date.now() - import_node_fs.default.statSync(lockPath).mtimeMs > staleMs) {
+          import_node_fs.default.rmSync(lockPath, { recursive: true, force: true });
           continue;
         }
       } catch {
@@ -130,19 +153,19 @@ function withLock(lockPath, fn, { timeoutMs = 3e3, staleMs = 1e4 } = {}) {
   try {
     return fn();
   } finally {
-    fs.rmSync(lockPath, { recursive: true, force: true });
+    import_node_fs.default.rmSync(lockPath, { recursive: true, force: true });
   }
 }
 
 // cli/src/registry.ts
-import fs2 from "node:fs";
-import path3 from "node:path";
-var registryFile = (ctx) => path3.join(homeDir(ctx), "projects.json");
+var import_node_fs2 = __toESM(require("node:fs"), 1);
+var import_node_path3 = __toESM(require("node:path"), 1);
+var registryFile = (ctx) => import_node_path3.default.join(homeDir(ctx), "projects.json");
 function readRegistry(ctx) {
   const file = registryFile(ctx);
-  if (!fs2.existsSync(file)) return [];
+  if (!import_node_fs2.default.existsSync(file)) return [];
   try {
-    const data = JSON.parse(fs2.readFileSync(file, "utf8"));
+    const data = JSON.parse(import_node_fs2.default.readFileSync(file, "utf8"));
     if (!Array.isArray(data)) return [];
     return data.filter(
       (e) => e && typeof e.path === "string" && typeof e.name === "string" && typeof e.key === "string"
@@ -246,8 +269,8 @@ function emptyBoard(name, key) {
 }
 
 // cli/src/store.ts
-import fs3 from "node:fs";
-import path4 from "node:path";
+var import_node_fs3 = __toESM(require("node:fs"), 1);
+var import_node_path4 = __toESM(require("node:path"), 1);
 
 // cli/src/migrations.ts
 var MIGRATIONS = {
@@ -279,13 +302,13 @@ function migrate(raw, migrations = MIGRATIONS, target = SCHEMA_VERSION) {
 // cli/src/store.ts
 var BOARD_DIR = ".board";
 var BOARD_FILE = "board.json";
-var boardFileFor = (root) => path4.join(root, BOARD_DIR, BOARD_FILE);
+var boardFileFor = (root) => import_node_path4.default.join(root, BOARD_DIR, BOARD_FILE);
 function findBoard(start) {
-  let dir = path4.resolve(start);
+  let dir = import_node_path4.default.resolve(start);
   for (; ; ) {
     const file = boardFileFor(dir);
-    if (fs3.existsSync(file)) return { root: dir, file };
-    const parent = path4.dirname(dir);
+    if (import_node_fs3.default.existsSync(file)) return { root: dir, file };
+    const parent = import_node_path4.default.dirname(dir);
     if (parent === dir) return null;
     dir = parent;
   }
@@ -298,7 +321,7 @@ function requireBoard(ctx) {
 function readBoard(file) {
   let raw;
   try {
-    raw = JSON.parse(fs3.readFileSync(file, "utf8"));
+    raw = JSON.parse(import_node_fs3.default.readFileSync(file, "utf8"));
   } catch (e) {
     throw new UserError(`can't read ${file}: ${e.message}`);
   }
@@ -313,7 +336,7 @@ function readBoard(file) {
   if (errs.length) throw new UserError(`${file} is invalid:
   ${errs.slice(0, 10).join("\n  ")}`);
   if (res.migrated) {
-    fs3.copyFileSync(file, `${file}.v${res.from}.bak`);
+    import_node_fs3.default.copyFileSync(file, `${file}.v${res.from}.bak`);
     writeJsonAtomic(file, res.board);
   }
   return res.board;
@@ -356,7 +379,7 @@ function parseType(v) {
   return v;
 }
 function prettyName(dir) {
-  return path5.basename(dir).replace(/[-_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim() || "Project";
+  return import_node_path5.default.basename(dir).replace(/[-_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim() || "Project";
 }
 function deriveKey(name) {
   const words = name.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
@@ -366,11 +389,11 @@ function deriveKey(name) {
   return (key + "XX").slice(0, Math.max(2, Math.min(key.length, 4)));
 }
 function init(ctx, { opts }) {
-  const root = path5.resolve(ctx.cwd);
+  const root = import_node_path5.default.resolve(ctx.cwd);
   const file = boardFileFor(root);
   let board;
   let created = false;
-  if (fs4.existsSync(file)) {
+  if (import_node_fs4.default.existsSync(file)) {
     board = readBoard(file);
     if (opts.name || opts.key) throw new UserError(`board already exists in ${BOARD_DIR}/ \u2014 rename with the UI or edit settings later`);
   } else {
@@ -379,7 +402,7 @@ function init(ctx, { opts }) {
     if (!KEY_RE.test(key)) throw new UserError("--key must be 2\u20136 letters/digits, starting with a letter (e.g. LOOP)");
     board = emptyBoard(name, key);
     writeBoard(file, board);
-    writeFileAtomic(path5.join(root, BOARD_DIR, ".gitignore"), "*.lock\n*.tmp\n*.bak\n");
+    writeFileAtomic(import_node_path5.default.join(root, BOARD_DIR, ".gitignore"), "*.lock\n*.tmp\n*.bak\n");
     created = true;
   }
   const isNew = registerProject(ctx, { path: root, name: board.project.name, key: board.project.key });
@@ -596,7 +619,7 @@ function touch(ctx, { pos, opts }) {
   const loc = findBoard(ctx.cwd);
   const nothing = (why) => opts.json ? ctx.out(JSON.stringify({ card: null, added: [], reason: why })) : void 0;
   if (!loc) return nothing("no board");
-  const rels = pos.map((p) => path5.relative(loc.root, path5.resolve(ctx.cwd, p))).filter((r) => r && !r.startsWith("..") && !path5.isAbsolute(r)).map((r) => r.split(path5.sep).join("/")).filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
+  const rels = pos.map((p) => import_node_path5.default.relative(loc.root, import_node_path5.default.resolve(ctx.cwd, p))).filter((r) => r && !r.startsWith("..") && !import_node_path5.default.isAbsolute(r)).map((r) => r.split(import_node_path5.default.sep).join("/")).filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
   if (!rels.length) return nothing("no files inside the project");
   const probe = activeFeature(readBoard(loc.file));
   if (!probe || rels.every((r) => probe.files.includes(r))) return nothing(probe ? "already attached" : "no active card");
@@ -679,7 +702,7 @@ function run(argv, ctx) {
   try {
     let parsed;
     try {
-      parsed = parseArgs({ args: rest, options: { ...GLOBAL, ...command.options }, allowPositionals: true, strict: true });
+      parsed = (0, import_node_util.parseArgs)({ args: rest, options: { ...GLOBAL, ...command.options }, allowPositionals: true, strict: true });
     } catch (e) {
       throw new UserError(`${e.message.split("\n")[0]}
 usage: board ${command.usage}`);
@@ -689,7 +712,7 @@ usage: board ${command.usage}`);
       ctx.out(`usage: board ${command.usage}`);
       return 0;
     }
-    const dir = typeof opts.dir === "string" ? path6.resolve(ctx.cwd, opts.dir) : ctx.cwd;
+    const dir = typeof opts.dir === "string" ? import_node_path6.default.resolve(ctx.cwd, opts.dir) : ctx.cwd;
     command.run({ ...ctx, cwd: dir }, { pos: parsed.positionals, opts });
     return 0;
   } catch (e) {
