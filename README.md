@@ -14,6 +14,14 @@ npm install && npm run build && npm test
 ./bin/board context
 ```
 
+## See the board
+
+```
+./bin/board ui
+```
+
+Opens http://localhost:4747 — every registered project, live-updating as Claude writes.
+
 ## Install the plugin (local, before it's on GitHub)
 
 In Claude Code, from any project:

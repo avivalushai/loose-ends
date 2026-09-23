@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { type Ctx, UserError, actor, nowIso } from "./context.js";
@@ -13,7 +14,7 @@ import {
   stamp,
 } from "./features.js";
 import { writeFileAtomic } from "./fsutil.js";
-import { registerProject, registryFile } from "./registry.js";
+import { readRegistry, registerProject, registryFile } from "./registry.js";
 import {
   type Board,
   type Feature,
@@ -357,4 +358,43 @@ export function touch(ctx: Ctx, { pos, opts }: Args) {
   });
   if (!res || !res.added.length) return nothing("already attached");
   emit(ctx, opts, { card: res.f.key, added: res.added }, `${res.f.key} + ${res.added.join(", ")}`);
+}
+
+/** Remove a card. The UI's delete button; the skill prefers `merge`. */
+export function remove(ctx: Ctx, { pos, opts }: Args) {
+  const keyArg = need(pos, 0, "card key");
+  const f = mutateBoard(requireBoard(ctx), (b) => {
+    const f = findFeature(b, keyArg);
+    b.features = b.features.filter((x) => x !== f);
+    return f;
+  });
+  emit(ctx, opts, f, `Deleted ${f.key} ${f.title}`);
+}
+
+/** Start the local server and open the board. Imported lazily: the server imports the CLI back. */
+export function ui(ctx: Ctx, { opts }: Args) {
+  const port = str(opts, "port") ? Number(str(opts, "port")) : undefined;
+  if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) throw new UserError("--port must be a port number");
+
+  void import("../../server/src/server.js")
+    .then(({ listen, DEFAULT_PORT }) => listen(ctx, port ?? DEFAULT_PORT))
+    .then(({ url }) => {
+      const projects = readRegistry(ctx).length;
+      ctx.out(`Loose Ends → ${url}`);
+      ctx.out(`${projects} project${projects === 1 ? "" : "s"} · board data stays on this machine · Ctrl-C to stop`);
+      if (!opts["no-open"]) openBrowser(url);
+    })
+    .catch((e: Error) => {
+      ctx.err(`board: can't start the server: ${e.message}`);
+      process.exitCode = 1;
+    });
+}
+
+function openBrowser(url: string): void {
+  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  try {
+    spawn(cmd, [url], { stdio: "ignore", detached: true, shell: process.platform === "win32" }).unref();
+  } catch {
+    /* no browser is fine — the URL is printed above */
+  }
 }

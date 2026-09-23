@@ -46,19 +46,20 @@ describe("plugin manifests", () => {
 });
 
 describe("skill and commands", () => {
-  const frontmatter = (text: string) => {
+  const frontmatter = (text: string): Record<string, string> => {
     const m = /^---\n([\s\S]*?)\n---\n/.exec(text);
     expect(m, "file must start with YAML frontmatter").toBeTruthy();
+    const body = m?.[1] ?? "";
     return Object.fromEntries(
-      m![1].split("\n").filter((l) => /^[\w-]+:/.test(l)).map((l) => [l.slice(0, l.indexOf(":")), l.slice(l.indexOf(":") + 1).trim()]),
+      body.split("\n").filter((l) => /^[\w-]+:/.test(l)).map((l) => [l.slice(0, l.indexOf(":")), l.slice(l.indexOf(":") + 1).trim()]),
     );
   };
 
   it("ships one skill with a description that says when to use it", () => {
     const fm = frontmatter(read("skills/loose-ends/SKILL.md"));
     expect(fm.name).toBe("loose-ends");
-    expect(fm.description.length).toBeGreaterThan(40);
-    expect(fm.description.length).toBeLessThan(1024);
+    expect((fm.description ?? "").length).toBeGreaterThan(40);
+    expect((fm.description ?? "").length).toBeLessThan(1024);
   });
 
   it("teaches the rules that matter, in the CLI's real vocabulary", () => {
@@ -161,7 +162,7 @@ describe("hook behaviour", () => {
     expect(r.raw).toBe("");
   });
 
-  it("Stop blocks once when code changed but the board didn't", () => {
+  it("Stop blocks once when code changed but the board didn't", async () => {
     const sb = withBoard();
     delete sb.env.LOOSE_ENDS_NOW; // the Stop check compares card-log times against real edit times
     sb.board("add", "Save loops", "--status", "active");
@@ -169,6 +170,10 @@ describe("hook behaviour", () => {
     const stop = () => runHook("stop.mjs", { hook_event_name: "Stop", session_id: "s4", cwd: sb.root }, env);
 
     expect(stop().raw).toBe(""); // nothing edited yet
+
+    // Card-log timestamps have second resolution, and a board change in the same second
+    // as an edit counts as "already updated" — so step past that window deliberately.
+    await new Promise((r) => setTimeout(r, 1100));
 
     // an edit the board doesn't know about (touch rewrites board.json, but logs nothing)
     fs.writeFileSync(path.join(sb.root, "notes.md"), "x");

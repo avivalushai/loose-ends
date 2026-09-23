@@ -5,11 +5,9 @@
     "moduleResolution": "NodeNext",
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "declaration": false,
-    "sourceMap": false,
-    "skipLibCheck": true
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
   },
-  "include": ["src"]
+  "include": ["cli/src", "cli/test", "server/src", "vitest.config.ts"]
 }

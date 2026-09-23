@@ -223,3 +223,16 @@ describe("board merge", () => {
     expect(sb.read().features).toHaveLength(1);
   });
 });
+
+describe("board delete", () => {
+  it("removes a card without reusing its number", () => {
+    const sb = withBoard();
+    sb.board("add", "Save loops");
+    sb.board("add", "Mobile layout");
+    expect(sb.board("delete", "APP-1").out).toBe("Deleted APP-1 Save loops");
+    expect(sb.read().features.map((f: any) => f.key)).toEqual(["APP-2"]);
+    expect(sb.read().nextNum).toBe(3);
+    expect(validateBoard(sb.read())).toEqual([]);
+    expect(sb.board("delete", "APP-1").err).toContain("no card APP-1");
+  });
+});

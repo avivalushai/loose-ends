@@ -7,7 +7,7 @@
   "settings": {
     "granularity": "normal"
   },
-  "nextNum": 6,
+  "nextNum": 9,
   "features": [
     {
       "key": "LE-1",
@@ -194,38 +194,76 @@
       "key": "LE-3",
       "title": "Local server and the web UI",
       "type": "feature",
-      "status": "idea",
-      "note": "Port prototype/loose-ends.html from localStorage to the server API",
+      "status": "review",
+      "note": "Run board ui, then edit a card in the browser and watch it change in the terminal (and the other way round)",
       "doneWhen": [
         "board ui opens the board in a browser and it updates live as Claude writes"
       ],
       "steps": [
         {
           "text": "HTTP API from SPEC §6",
-          "done": false
+          "done": true
         },
         {
           "text": "File watcher + SSE",
-          "done": false
+          "done": true
         },
         {
           "text": "UI reads and writes through the API",
-          "done": false
+          "done": true
         },
         {
           "text": "board ui command",
-          "done": false
+          "done": true
         }
       ],
-      "files": [],
+      "files": [
+        "server/src/api.ts",
+        "server/src/projects.ts",
+        "server/src/server.ts",
+        "server/src/watch.ts",
+        "ui/index.html",
+        "cli/test/server.test.ts",
+        "cli/test/ui.test.ts"
+      ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:29:30Z",
       "updatedBy": "claude",
       "log": [
         {
           "at": "2026-09-23T13:02:51Z",
           "by": "claude",
           "text": "Created"
+        },
+        {
+          "at": "2026-09-23T13:20:13Z",
+          "by": "claude",
+          "text": "Started — Local server first: API + SSE, then port the prototype onto it"
+        },
+        {
+          "at": "2026-09-23T13:29:29Z",
+          "by": "claude",
+          "text": "Step done: HTTP API from SPEC §6"
+        },
+        {
+          "at": "2026-09-23T13:29:29Z",
+          "by": "claude",
+          "text": "Step done: File watcher + SSE"
+        },
+        {
+          "at": "2026-09-23T13:29:29Z",
+          "by": "claude",
+          "text": "Step done: UI reads and writes through the API"
+        },
+        {
+          "at": "2026-09-23T13:29:29Z",
+          "by": "claude",
+          "text": "Step done: board ui command"
+        },
+        {
+          "at": "2026-09-23T13:29:30Z",
+          "by": "claude",
+          "text": "Moved to review — Run board ui, then edit a card in the browser and watch it change in the terminal (and the other way round)"
         }
       ]
     },

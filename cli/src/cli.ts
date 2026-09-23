@@ -40,11 +40,13 @@ const COMMANDS: Record<string, Command> = {
   review: { usage: `review LOOP-3 [--note "What to check"]`, options: { note: s }, run: cmd.review },
   done: { usage: "done LOOP-3", options: {}, run: cmd.done },
   merge: { usage: "merge LOOP-15 --into LOOP-3", options: { into: s }, run: cmd.merge },
+  delete: { usage: "delete LOOP-3", options: {}, run: cmd.remove },
   touch: { usage: "touch <file>...", options: {}, run: cmd.touch },
   context: { usage: "context", options: {}, run: cmd.context },
+  ui: { usage: "ui [--port 4747] [--no-open]", options: { port: s, "no-open": flag }, run: cmd.ui },
 };
 
-const LATER: Record<string, string> = { ui: "phase 3", login: "phase 5", logout: "phase 5", telemetry: "phase 5" };
+const LATER: Record<string, string> = { login: "phase 5", logout: "phase 5", telemetry: "phase 5" };
 
 export function helpText(): string {
   return [

@@ -6,6 +6,13 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -23,36 +30,32 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// cli/src/cli.ts
-var import_node_path6 = __toESM(require("node:path"), 1);
-var import_node_util = require("node:util");
-
-// cli/src/commands.ts
-var import_node_fs4 = __toESM(require("node:fs"), 1);
-var import_node_path5 = __toESM(require("node:path"), 1);
-
 // cli/src/context.ts
-var import_node_os = __toESM(require("node:os"), 1);
-var import_node_path = __toESM(require("node:path"), 1);
-var UserError = class extends Error {
-};
-var homeDir = (ctx) => ctx.env.LOOSE_ENDS_HOME || import_node_path.default.join(import_node_os.default.homedir(), ".loose-ends");
-var nowIso = (ctx) => {
-  const pinned = ctx.env.LOOSE_ENDS_NOW;
-  return (pinned ? new Date(pinned) : /* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
-};
 function actor(ctx, flag2) {
   const v = flag2 ?? ctx.env.LOOSE_ENDS_BY ?? (ctx.env.CLAUDECODE ? "claude" : "user");
   if (v !== "claude" && v !== "user") throw new UserError(`--by must be claude or user (got "${v}")`);
   return v;
 }
+var import_node_os, import_node_path, UserError, homeDir, nowIso;
+var init_context = __esm({
+  "cli/src/context.ts"() {
+    "use strict";
+    import_node_os = __toESM(require("node:os"), 1);
+    import_node_path = __toESM(require("node:path"), 1);
+    UserError = class extends Error {
+    };
+    homeDir = (ctx) => ctx.env.LOOSE_ENDS_HOME || import_node_path.default.join(import_node_os.default.homedir(), ".loose-ends");
+    nowIso = (ctx) => {
+      const pinned = ctx.env.LOOSE_ENDS_NOW;
+      return (pinned ? new Date(pinned) : /* @__PURE__ */ new Date()).toISOString().replace(/\.\d{3}Z$/, "Z");
+    };
+  }
+});
 
 // cli/src/features.ts
-var STATUS_ORDER = ["active", "parked", "review", "idea", "done"];
-var NOTE_LABEL = { active: "Next", parked: "Stopped", review: "Check" };
-function findFeature(board, input) {
-  const want = /^\d+$/.test(input) ? `${board.project.key}-${input}` : input.toUpperCase();
-  const f = board.features.find((x) => x.key === want);
+function findFeature(board2, input) {
+  const want = /^\d+$/.test(input) ? `${board2.project.key}-${input}` : input.toUpperCase();
+  const f = board2.features.find((x) => x.key === want);
   if (!f) throw new UserError(`no card ${want}`);
   return f;
 }
@@ -77,18 +80,17 @@ function setStatus(ctx, f, to, by, note) {
 function progress(f) {
   return { done: f.steps.filter((s2) => s2.done).length, total: f.steps.length };
 }
-function sortFeatures(fs5) {
-  return [...fs5].sort(
+function sortFeatures(fs8) {
+  return [...fs8].sort(
     (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || b.updatedAt.localeCompare(a.updatedAt)
   );
 }
-function activeFeature(board) {
-  return sortFeatures(board.features.filter((f) => f.status === "active"))[0];
+function activeFeature(board2) {
+  return sortFeatures(board2.features.filter((f) => f.status === "active"))[0];
 }
 function ageDays(ctx, iso) {
   return Math.floor((Date.parse(nowIso(ctx)) - Date.parse(iso)) / 864e5);
 }
-var clip = (s2, n) => s2.length > n ? s2.slice(0, n - 1) + "\u2026" : s2;
 function formatLine(f, keyWidth = 0) {
   const { done: done2, total } = progress(f);
   const parts = [f.key.padEnd(keyWidth), f.status.padEnd(6), f.title];
@@ -115,10 +117,18 @@ function ageLabel(ctx, iso) {
   if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
   return `${Math.floor(mins / 1440)}d ago`;
 }
+var STATUS_ORDER, NOTE_LABEL, clip;
+var init_features = __esm({
+  "cli/src/features.ts"() {
+    "use strict";
+    init_context();
+    STATUS_ORDER = ["active", "parked", "review", "idea", "done"];
+    NOTE_LABEL = { active: "Next", parked: "Stopped", review: "Check" };
+    clip = (s2, n) => s2.length > n ? s2.slice(0, n - 1) + "\u2026" : s2;
+  }
+});
 
 // cli/src/fsutil.ts
-var import_node_fs = __toESM(require("node:fs"), 1);
-var import_node_path2 = __toESM(require("node:path"), 1);
 function writeFileAtomic(file, data) {
   import_node_fs.default.mkdirSync(import_node_path2.default.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
@@ -128,7 +138,6 @@ function writeFileAtomic(file, data) {
 function writeJsonAtomic(file, value) {
   writeFileAtomic(file, JSON.stringify(value, null, 2) + "\n");
 }
-var sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 function withLock(lockPath, fn, { timeoutMs = 3e3, staleMs = 1e4 } = {}) {
   const start = Date.now();
   import_node_fs.default.mkdirSync(import_node_path2.default.dirname(lockPath), { recursive: true });
@@ -156,11 +165,17 @@ function withLock(lockPath, fn, { timeoutMs = 3e3, staleMs = 1e4 } = {}) {
     import_node_fs.default.rmSync(lockPath, { recursive: true, force: true });
   }
 }
+var import_node_fs, import_node_path2, sleep;
+var init_fsutil = __esm({
+  "cli/src/fsutil.ts"() {
+    "use strict";
+    import_node_fs = __toESM(require("node:fs"), 1);
+    import_node_path2 = __toESM(require("node:path"), 1);
+    sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  }
+});
 
 // cli/src/registry.ts
-var import_node_fs2 = __toESM(require("node:fs"), 1);
-var import_node_path3 = __toESM(require("node:path"), 1);
-var registryFile = (ctx) => import_node_path3.default.join(homeDir(ctx), "projects.json");
 function readRegistry(ctx) {
   const file = registryFile(ctx);
   if (!import_node_fs2.default.existsSync(file)) return [];
@@ -189,21 +204,22 @@ function registerProject(ctx, entry) {
     return !existing;
   });
 }
+var import_node_fs2, import_node_path3, registryFile;
+var init_registry = __esm({
+  "cli/src/registry.ts"() {
+    "use strict";
+    import_node_fs2 = __toESM(require("node:fs"), 1);
+    import_node_path3 = __toESM(require("node:path"), 1);
+    init_context();
+    init_fsutil();
+    registryFile = (ctx) => import_node_path3.default.join(homeDir(ctx), "projects.json");
+  }
+});
 
 // cli/src/schema.ts
-var SCHEMA_VERSION = 1;
-var STATUSES = ["idea", "active", "parked", "review", "done"];
-var TYPES = ["feature", "bug", "chore"];
-var ACTORS = ["claude", "user"];
-var GRANULARITIES = ["coarse", "normal", "fine"];
-var KEY_RE = /^[A-Z][A-Z0-9]{1,5}$/;
-var ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
-var isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
-var isStr = (v) => typeof v === "string";
-var oneOf = (list2, v) => isStr(v) && list2.includes(v);
 function validateBoard(b) {
   const errs = [];
-  const err = (path7, msg) => errs.push(`${path7}: ${msg}`);
+  const err = (path9, msg) => errs.push(`${path9}: ${msg}`);
   if (!isObj(b)) return ["board: must be an object"];
   if (b.schemaVersion !== SCHEMA_VERSION) err("schemaVersion", `must be ${SCHEMA_VERSION}`);
   if (!isObj(b.project)) err("project", "must be an object");
@@ -267,22 +283,29 @@ function emptyBoard(name, key) {
     features: []
   };
 }
-
-// cli/src/store.ts
-var import_node_fs3 = __toESM(require("node:fs"), 1);
-var import_node_path4 = __toESM(require("node:path"), 1);
+var SCHEMA_VERSION, STATUSES, TYPES, ACTORS, GRANULARITIES, KEY_RE, ISO_RE, isObj, isStr, oneOf;
+var init_schema = __esm({
+  "cli/src/schema.ts"() {
+    "use strict";
+    SCHEMA_VERSION = 1;
+    STATUSES = ["idea", "active", "parked", "review", "done"];
+    TYPES = ["feature", "bug", "chore"];
+    ACTORS = ["claude", "user"];
+    GRANULARITIES = ["coarse", "normal", "fine"];
+    KEY_RE = /^[A-Z][A-Z0-9]{1,5}$/;
+    ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+    isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+    isStr = (v) => typeof v === "string";
+    oneOf = (list2, v) => isStr(v) && list2.includes(v);
+  }
+});
 
 // cli/src/migrations.ts
-var MIGRATIONS = {
-  // v1 is the first released schema; nothing to migrate yet.
-};
-var MigrationError = class extends Error {
-};
 function migrate(raw, migrations = MIGRATIONS, target = SCHEMA_VERSION) {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw))
     throw new MigrationError("board.json is not a JSON object");
-  let board = raw;
-  const from = board.schemaVersion;
+  let board2 = raw;
+  const from = board2.schemaVersion;
   if (!Number.isInteger(from) || from < 1)
     throw new MigrationError("board.json has no valid schemaVersion");
   if (from > target)
@@ -293,16 +316,25 @@ function migrate(raw, migrations = MIGRATIONS, target = SCHEMA_VERSION) {
   while (v < target) {
     const step2 = migrations[v];
     if (!step2) throw new MigrationError(`no migration from schemaVersion ${v} to ${v + 1}`);
-    board = { ...step2(structuredClone(board)), schemaVersion: v + 1 };
+    board2 = { ...step2(structuredClone(board2)), schemaVersion: v + 1 };
     v++;
   }
-  return { board, from, to: v, migrated: v !== from };
+  return { board: board2, from, to: v, migrated: v !== from };
 }
+var MIGRATIONS, MigrationError;
+var init_migrations = __esm({
+  "cli/src/migrations.ts"() {
+    "use strict";
+    init_schema();
+    MIGRATIONS = {
+      // v1 is the first released schema; nothing to migrate yet.
+    };
+    MigrationError = class extends Error {
+    };
+  }
+});
 
 // cli/src/store.ts
-var BOARD_DIR = ".board";
-var BOARD_FILE = "board.json";
-var boardFileFor = (root) => import_node_path4.default.join(root, BOARD_DIR, BOARD_FILE);
 function findBoard(start) {
   let dir = import_node_path4.default.resolve(start);
   for (; ; ) {
@@ -341,26 +373,391 @@ function readBoard(file) {
   }
   return res.board;
 }
-function writeBoard(file, board) {
-  const errs = validateBoard(board);
+function writeBoard(file, board2) {
+  const errs = validateBoard(board2);
   if (errs.length) throw new Error(`refusing to write an invalid board:
   ${errs.join("\n  ")}`);
-  writeJsonAtomic(file, board);
+  writeJsonAtomic(file, board2);
 }
 function mutateBoard(loc, fn) {
   return withLock(loc.file + ".lock", () => {
-    const board = readBoard(loc.file);
-    const result = fn(board);
-    writeBoard(loc.file, board);
+    const board2 = readBoard(loc.file);
+    const result = fn(board2);
+    writeBoard(loc.file, board2);
     return result;
   });
 }
+var import_node_fs3, import_node_path4, BOARD_DIR, BOARD_FILE, boardFileFor;
+var init_store = __esm({
+  "cli/src/store.ts"() {
+    "use strict";
+    import_node_fs3 = __toESM(require("node:fs"), 1);
+    import_node_path4 = __toESM(require("node:path"), 1);
+    init_context();
+    init_fsutil();
+    init_migrations();
+    init_schema();
+    BOARD_DIR = ".board";
+    BOARD_FILE = "board.json";
+    boardFileFor = (root) => import_node_path4.default.join(root, BOARD_DIR, BOARD_FILE);
+  }
+});
+
+// server/src/projects.ts
+function listProjects(ctx) {
+  return readRegistry(ctx).filter((e) => import_node_fs4.default.existsSync(boardFileFor(e.path))).map((e) => ({ id: projectId(e.path), name: e.name, key: e.key, path: e.path, addedAt: e.addedAt }));
+}
+function findProject(ctx, id) {
+  return listProjects(ctx).find((p) => p.id === id);
+}
+function loadBoard(project2) {
+  return readBoard(boardFileFor(project2.path));
+}
+function summarize(project2) {
+  const base = { ...project2, counts: Object.fromEntries(STATUSES.map((s2) => [s2, 0])) };
+  let board2;
+  try {
+    board2 = loadBoard(project2);
+  } catch (e) {
+    return { ...base, total: 0, parked: 0, percentComplete: 0, error: e.message };
+  }
+  for (const f of board2.features) base.counts[f.status]++;
+  const total = board2.features.length;
+  return {
+    ...base,
+    name: board2.project.name,
+    key: board2.project.key,
+    total,
+    parked: base.counts.parked,
+    percentComplete: total ? Math.round(100 * base.counts.done / total) : 0
+  };
+}
+var import_node_crypto, import_node_fs4, projectId;
+var init_projects = __esm({
+  "server/src/projects.ts"() {
+    "use strict";
+    import_node_crypto = __toESM(require("node:crypto"), 1);
+    import_node_fs4 = __toESM(require("node:fs"), 1);
+    init_registry();
+    init_schema();
+    init_store();
+    projectId = (path9) => import_node_crypto.default.createHash("sha1").update(path9).digest("hex").slice(0, 8);
+  }
+});
+
+// server/src/api.ts
+function board(ctx, project2, argv) {
+  const out = [];
+  const err = [];
+  const code = run([...argv, "--json"], {
+    cwd: project2.path,
+    env: { ...ctx.env, LOOSE_ENDS_BY: "user" },
+    // the UI is the user typing
+    out: (l) => out.push(l),
+    err: (l) => err.push(l)
+  });
+  if (code !== 0) throw new HttpError(400, err.join("\n").replace(/^board: /, "") || "board command failed");
+  return JSON.parse(out.join("\n") || "null");
+}
+function project(ctx, id) {
+  const p = findProject(ctx, id);
+  if (!p) throw new HttpError(404, `no project ${id}`);
+  return p;
+}
+function applyPatch(ctx, p, key, patch) {
+  const argv = ["update", key];
+  if (patch.title !== void 0) argv.push("--title", str(patch.title, "title"));
+  if (patch.note !== void 0) argv.push("--note", str(patch.note, "note"));
+  if (patch.status !== void 0) argv.push("--status", str(patch.status, "status"));
+  if (patch.type !== void 0) argv.push("--type", str(patch.type, "type"));
+  for (const d of patch.doneWhen ?? []) argv.push("--done-when", str(d, "doneWhen entry"));
+  if (argv.length > 2) board(ctx, p, argv);
+  if (patch.steps) {
+    const before = feature(p, key).steps;
+    const after = patch.steps.map((s2) => ({ text: str(s2?.text, "step text"), done: !!s2?.done }));
+    for (const s2 of before) if (!after.some((a) => a.text === s2.text)) board(ctx, p, ["step", key, s2.text, "--remove"]);
+    for (const s2 of after) {
+      const was = before.find((b) => b.text === s2.text);
+      if (!was) board(ctx, p, ["step", key, s2.text, ...s2.done ? ["--done"] : []]);
+      else if (was.done !== s2.done) board(ctx, p, ["step", key, s2.text, s2.done ? "--done" : "--undone"]);
+    }
+  }
+  return feature(p, key);
+}
+function handleApi(ctx, req) {
+  const { method, path: path9 } = req;
+  const seg = path9.replace(/^\/api\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
+  if (seg[0] !== "projects") return void 0;
+  if (seg.length === 1) {
+    if (method !== "GET") throw new HttpError(405, "use GET");
+    return listProjects(ctx).map(summarize);
+  }
+  const p = project(ctx, seg[1]);
+  if (seg.length === 3 && seg[2] === "board") {
+    if (method !== "GET") throw new HttpError(405, "use GET");
+    return loadBoard(p);
+  }
+  if (seg[2] !== "features") throw new HttpError(404, `no route ${path9}`);
+  if (seg.length === 3) {
+    if (method !== "POST") throw new HttpError(405, "use POST");
+    const b = req.body ?? {};
+    const argv = ["add", str(b.title, "title")];
+    for (const [flag2, key] of [["--status", "status"], ["--type", "type"], ["--note", "note"]])
+      if (b[key] !== void 0 && b[key] !== "") argv.push(flag2, str(b[key], key));
+    for (const s2 of b.steps ?? []) argv.push("--step", str(s2?.text, "step text"));
+    for (const d of b.doneWhen ?? []) argv.push("--done-when", str(d, "doneWhen entry"));
+    return board(ctx, p, argv);
+  }
+  if (seg.length === 4) {
+    const key = seg[3].toUpperCase();
+    feature(p, key);
+    if (method === "PATCH") return applyPatch(ctx, p, key, req.body ?? {});
+    if (method === "DELETE") return board(ctx, p, ["delete", key]);
+    throw new HttpError(405, "use PATCH or DELETE");
+  }
+  throw new HttpError(404, `no route ${path9}`);
+}
+var HttpError, feature, str;
+var init_api = __esm({
+  "server/src/api.ts"() {
+    "use strict";
+    init_cli();
+    init_projects();
+    HttpError = class extends Error {
+      constructor(status, message) {
+        super(message);
+        this.status = status;
+      }
+    };
+    feature = (project2, key) => {
+      const f = loadBoard(project2).features.find((x) => x.key === key);
+      if (!f) throw new HttpError(404, `no card ${key}`);
+      return f;
+    };
+    str = (v, what) => {
+      if (typeof v !== "string") throw new HttpError(400, `${what} must be a string`);
+      return v;
+    };
+  }
+});
+
+// server/src/watch.ts
+function watchBoards(ctx, onChange, { debounceMs = 60 } = {}) {
+  const watchers = [];
+  const timers = /* @__PURE__ */ new Map();
+  let closed = false;
+  const fire = (id) => {
+    const k = id ?? "*";
+    clearTimeout(timers.get(k));
+    timers.set(
+      k,
+      setTimeout(() => {
+        timers.delete(k);
+        if (!closed) onChange(id);
+      }, debounceMs).unref()
+    );
+  };
+  const watch = (target, handler) => {
+    try {
+      const w = import_node_fs5.default.watch(target, { persistent: false }, handler);
+      w.on("error", () => {
+      });
+      watchers.push(w);
+    } catch {
+    }
+  };
+  const rebuild = () => {
+    while (watchers.length) watchers.pop().close();
+    if (closed) return;
+    watch(import_node_path5.default.dirname(registryFile(ctx)), (_e, file) => {
+      if (!file || String(file).startsWith("projects.json")) {
+        rebuild();
+        fire(null);
+      }
+    });
+    for (const p of listProjects(ctx)) watch(import_node_path5.default.join(p.path, BOARD_DIR), () => fire(p.id));
+  };
+  try {
+    import_node_fs5.default.mkdirSync(import_node_path5.default.dirname(registryFile(ctx)), { recursive: true });
+  } catch {
+  }
+  rebuild();
+  return {
+    close() {
+      closed = true;
+      for (const t of timers.values()) clearTimeout(t);
+      while (watchers.length) watchers.pop().close();
+    },
+    rebuild
+  };
+}
+var import_node_fs5, import_node_path5;
+var init_watch = __esm({
+  "server/src/watch.ts"() {
+    "use strict";
+    import_node_fs5 = __toESM(require("node:fs"), 1);
+    import_node_path5 = __toESM(require("node:path"), 1);
+    init_registry();
+    init_store();
+    init_projects();
+  }
+});
+
+// server/src/server.ts
+var server_exports = {};
+__export(server_exports, {
+  DEFAULT_PORT: () => DEFAULT_PORT,
+  createServer: () => createServer,
+  listen: () => listen
+});
+function defaultUiDir() {
+  const here = typeof __dirname === "string" ? __dirname : import_node_path6.default.dirname((0, import_node_url.fileURLToPath)(__filename));
+  const candidates = [import_node_path6.default.resolve(here, "../../ui"), import_node_path6.default.resolve(here, "../ui")];
+  return candidates.find((d) => import_node_fs6.default.existsSync(import_node_path6.default.join(d, "index.html"))) ?? candidates[0];
+}
+function cors(req, res) {
+  const origin = req.headers.origin;
+  res.setHeader("Vary", "Origin");
+  if (origin && ALLOWED_ORIGIN.test(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Max-Age", "600");
+    if (req.headers["access-control-request-private-network"] === "true")
+      res.setHeader("Access-Control-Allow-Private-Network", "true");
+  }
+}
+async function readBody(req) {
+  const chunks = [];
+  let size = 0;
+  for await (const c of req) {
+    size += c.length;
+    if (size > 1e6) throw new HttpError(413, "body too large");
+    chunks.push(c);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  if (!raw) return void 0;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new HttpError(400, "body must be JSON");
+  }
+}
+function serveStatic(res, urlPath, uiDir) {
+  const rel = urlPath === "/" || urlPath === "/app" ? "index.html" : urlPath.replace(/^\/+/, "");
+  const file = import_node_path6.default.join(uiDir, rel);
+  if (!file.startsWith(uiDir + import_node_path6.default.sep) || !import_node_fs6.default.existsSync(file) || !import_node_fs6.default.statSync(file).isFile()) {
+    res.writeHead(404, { "Content-Type": "text/plain" });
+    return void res.end("Not found");
+  }
+  res.writeHead(200, { "Content-Type": MIME[import_node_path6.default.extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache" });
+  import_node_fs6.default.createReadStream(file).pipe(res);
+}
+function createServer(ctx, options = {}) {
+  const uiDir = options.uiDir ?? defaultUiDir();
+  const clients = /* @__PURE__ */ new Set();
+  const watcher = watchBoards(ctx, (projectId2) => {
+    for (const res of clients) send(res, "board", { project: projectId2 });
+  });
+  const send = (res, event, data) => {
+    try {
+      res.write(`event: ${event}
+data: ${JSON.stringify(data)}
+
+`);
+    } catch {
+      clients.delete(res);
+    }
+  };
+  const server = import_node_http.default.createServer((req, res) => {
+    void (async () => {
+      const urlPath = new URL(req.url ?? "/", "http://localhost").pathname;
+      cors(req, res);
+      if (req.method === "OPTIONS") {
+        res.writeHead(204);
+        return void res.end();
+      }
+      if (!ALLOWED_HOST.test(req.headers.host ?? "")) return json(res, 403, { error: "loopback only" });
+      if (urlPath === "/api/events") {
+        res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+        clients.add(res);
+        send(res, "hello", { ok: true });
+        const beat = setInterval(() => res.write(": ping\n\n"), 25e3).unref();
+        req.on("close", () => {
+          clearInterval(beat);
+          clients.delete(res);
+        });
+        return;
+      }
+      if (urlPath.startsWith("/api/")) {
+        try {
+          const body = req.method === "POST" || req.method === "PATCH" ? await readBody(req) : void 0;
+          const result = handleApi(ctx, { method: req.method ?? "GET", path: urlPath, body });
+          if (result === void 0) return json(res, 404, { error: `no route ${urlPath}` });
+          return json(res, req.method === "POST" ? 201 : 200, result);
+        } catch (e) {
+          if (e instanceof HttpError) return json(res, e.status, { error: e.message });
+          return json(res, 500, { error: e.message });
+        }
+      }
+      if (req.method !== "GET") return json(res, 405, { error: "use GET" });
+      serveStatic(res, urlPath, uiDir);
+    })();
+  });
+  server.on("close", () => {
+    watcher.close();
+    for (const c of clients) c.end();
+    clients.clear();
+  });
+  return Object.assign(server, { clientCount: () => clients.size });
+}
+function listen(ctx, port = DEFAULT_PORT, options = {}) {
+  const tries = options.tries ?? 10;
+  return new Promise((resolve, reject) => {
+    const server = createServer(ctx, options);
+    server.once("error", (e) => {
+      if (e.code === "EADDRINUSE" && tries > 0) resolve(listen(ctx, port + 1, { ...options, tries: tries - 1 }));
+      else reject(e);
+    });
+    server.listen(port, "127.0.0.1", () => {
+      const addr = server.address();
+      const actual = typeof addr === "object" && addr ? addr.port : port;
+      resolve({ server, url: `http://localhost:${actual}` });
+    });
+  });
+}
+var import_node_fs6, import_node_http, import_node_path6, import_node_url, DEFAULT_PORT, ALLOWED_ORIGIN, ALLOWED_HOST, MIME, json;
+var init_server = __esm({
+  "server/src/server.ts"() {
+    "use strict";
+    import_node_fs6 = __toESM(require("node:fs"), 1);
+    import_node_http = __toESM(require("node:http"), 1);
+    import_node_path6 = __toESM(require("node:path"), 1);
+    import_node_url = require("node:url");
+    init_api();
+    init_watch();
+    DEFAULT_PORT = 4747;
+    ALLOWED_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$|^https:\/\/(www\.)?looseends\.dev$/;
+    ALLOWED_HOST = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+    MIME = {
+      ".html": "text/html; charset=utf-8",
+      ".js": "text/javascript; charset=utf-8",
+      ".css": "text/css; charset=utf-8",
+      ".json": "application/json; charset=utf-8",
+      ".svg": "image/svg+xml",
+      ".ico": "image/x-icon"
+    };
+    json = (res, status, body) => {
+      const text = JSON.stringify(body, null, 2);
+      res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Content-Length": Buffer.byteLength(text) });
+      res.end(text);
+    };
+  }
+});
 
 // cli/src/commands.ts
-var str = (o, k) => typeof o[k] === "string" ? o[k] : void 0;
-var list = (o, k) => Array.isArray(o[k]) ? o[k] : [];
-function emit(ctx, opts, json, text) {
-  if (opts.json) ctx.out(JSON.stringify(json, null, 2));
+function emit(ctx, opts, json2, text) {
+  if (opts.json) ctx.out(JSON.stringify(json2, null, 2));
   else for (const l of [text].flat()) ctx.out(l);
 }
 function need(pos, i, what) {
@@ -379,7 +776,7 @@ function parseType(v) {
   return v;
 }
 function prettyName(dir) {
-  return import_node_path5.default.basename(dir).replace(/[-_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim() || "Project";
+  return import_node_path7.default.basename(dir).replace(/[-_.]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim() || "Project";
 }
 function deriveKey(name) {
   const words = name.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
@@ -389,46 +786,46 @@ function deriveKey(name) {
   return (key + "XX").slice(0, Math.max(2, Math.min(key.length, 4)));
 }
 function init(ctx, { opts }) {
-  const root = import_node_path5.default.resolve(ctx.cwd);
+  const root = import_node_path7.default.resolve(ctx.cwd);
   const file = boardFileFor(root);
-  let board;
+  let board2;
   let created = false;
-  if (import_node_fs4.default.existsSync(file)) {
-    board = readBoard(file);
+  if (import_node_fs7.default.existsSync(file)) {
+    board2 = readBoard(file);
     if (opts.name || opts.key) throw new UserError(`board already exists in ${BOARD_DIR}/ \u2014 rename with the UI or edit settings later`);
   } else {
-    const name = str(opts, "name")?.trim() || prettyName(root);
-    const key = (str(opts, "key") ?? deriveKey(name)).toUpperCase();
+    const name = str2(opts, "name")?.trim() || prettyName(root);
+    const key = (str2(opts, "key") ?? deriveKey(name)).toUpperCase();
     if (!KEY_RE.test(key)) throw new UserError("--key must be 2\u20136 letters/digits, starting with a letter (e.g. LOOP)");
-    board = emptyBoard(name, key);
-    writeBoard(file, board);
-    writeFileAtomic(import_node_path5.default.join(root, BOARD_DIR, ".gitignore"), "*.lock\n*.tmp\n*.bak\n");
+    board2 = emptyBoard(name, key);
+    writeBoard(file, board2);
+    writeFileAtomic(import_node_path7.default.join(root, BOARD_DIR, ".gitignore"), "*.lock\n*.tmp\n*.bak\n");
     created = true;
   }
-  const isNew = registerProject(ctx, { path: root, name: board.project.name, key: board.project.key });
-  emit(ctx, opts, { created, registered: isNew, project: board.project, file, registry: registryFile(ctx) }, [
-    created ? `Created board ${board.project.name} (${board.project.key}) in ${BOARD_DIR}/board.json` : `Board ${board.project.name} (${board.project.key}) already exists`,
+  const isNew = registerProject(ctx, { path: root, name: board2.project.name, key: board2.project.key });
+  emit(ctx, opts, { created, registered: isNew, project: board2.project, file, registry: registryFile(ctx) }, [
+    created ? `Created board ${board2.project.name} (${board2.project.key}) in ${BOARD_DIR}/board.json` : `Board ${board2.project.name} (${board2.project.key}) already exists`,
     isNew ? `Registered in ${registryFile(ctx)}` : `Already registered`
   ]);
 }
 function listCmd(ctx, { opts }) {
-  const board = readBoard(requireBoard(ctx).file);
-  const statuses = str(opts, "status")?.split(",").map((s2) => parseStatus(s2.trim()));
-  const type = parseType(str(opts, "type"));
-  let fs5 = board.features;
-  if (statuses) fs5 = fs5.filter((f) => statuses.includes(f.status));
-  else if (!opts.all) fs5 = fs5.filter((f) => f.status !== "done");
-  if (type) fs5 = fs5.filter((f) => f.type === type);
-  fs5 = sortFeatures(fs5);
-  const w = Math.max(0, ...fs5.map((f) => f.key.length));
-  const hidden = !statuses && !opts.all ? board.features.filter((f) => f.status === "done").length : 0;
-  const lines = fs5.length ? fs5.map((f) => formatLine(f, w)) : ["No cards."];
+  const board2 = readBoard(requireBoard(ctx).file);
+  const statuses = str2(opts, "status")?.split(",").map((s2) => parseStatus(s2.trim()));
+  const type = parseType(str2(opts, "type"));
+  let fs8 = board2.features;
+  if (statuses) fs8 = fs8.filter((f) => statuses.includes(f.status));
+  else if (!opts.all) fs8 = fs8.filter((f) => f.status !== "done");
+  if (type) fs8 = fs8.filter((f) => f.type === type);
+  fs8 = sortFeatures(fs8);
+  const w = Math.max(0, ...fs8.map((f) => f.key.length));
+  const hidden = !statuses && !opts.all ? board2.features.filter((f) => f.status === "done").length : 0;
+  const lines = fs8.length ? fs8.map((f) => formatLine(f, w)) : ["No cards."];
   if (hidden) lines.push(`(+${hidden} done \u2014 use --all)`);
-  emit(ctx, opts, fs5, lines);
+  emit(ctx, opts, fs8, lines);
 }
 function show(ctx, { pos, opts }) {
-  const board = readBoard(requireBoard(ctx).file);
-  const f = findFeature(board, need(pos, 0, "card key (e.g. LOOP-3)"));
+  const board2 = readBoard(requireBoard(ctx).file);
+  const f = findFeature(board2, need(pos, 0, "card key (e.g. LOOP-3)"));
   emit(ctx, opts, f, formatDetail(ctx, f));
 }
 function context(ctx, { opts }) {
@@ -449,10 +846,10 @@ function context(ctx, { opts }) {
     );
   const summary = STATUSES.filter((s2) => counts[s2]).map((s2) => `${counts[s2]} ${s2}`).join(", ") || "empty";
   const lines = [`Loose Ends board: ${b.project.name} (${b.project.key}) \u2014 ${summary}`];
-  const section = (title, fs5, extra) => {
-    if (!fs5.length) return;
+  const section = (title, fs8, extra) => {
+    if (!fs8.length) return;
     lines.push(`${title}:`);
-    for (const f of fs5) {
+    for (const f of fs8) {
       const { done: done2, total } = progress(f);
       const bits = [`  ${f.key} ${f.title}`];
       if (total) bits.push(`(${done2}/${total})`);
@@ -477,10 +874,10 @@ function context(ctx, { opts }) {
 function add(ctx, { pos, opts }) {
   const title = need(pos, 0, `title (e.g. board add "Export loop as WAV")`).trim();
   if (!title) throw new UserError("title can't be empty");
-  const status = parseStatus(str(opts, "status")) ?? "idea";
-  const type = parseType(str(opts, "type")) ?? "feature";
-  const note = str(opts, "note") ?? str(opts, "next") ?? "";
-  const by = actor(ctx, str(opts, "by"));
+  const status = parseStatus(str2(opts, "status")) ?? "idea";
+  const type = parseType(str2(opts, "type")) ?? "feature";
+  const note = str2(opts, "note") ?? str2(opts, "next") ?? "";
+  const by = actor(ctx, str2(opts, "by"));
   const loc = requireBoard(ctx);
   const f = mutateBoard(loc, (b) => {
     const at = nowIso(ctx);
@@ -507,11 +904,11 @@ function add(ctx, { pos, opts }) {
 }
 function update(ctx, { pos, opts }) {
   const keyArg = need(pos, 0, "card key");
-  const by = actor(ctx, str(opts, "by"));
-  const status = parseStatus(str(opts, "status"));
-  const type = parseType(str(opts, "type"));
-  const title = str(opts, "title")?.trim();
-  const note = str(opts, "note") ?? str(opts, "next");
+  const by = actor(ctx, str2(opts, "by"));
+  const status = parseStatus(str2(opts, "status"));
+  const type = parseType(str2(opts, "type"));
+  const title = str2(opts, "title")?.trim();
+  const note = str2(opts, "note") ?? str2(opts, "next");
   const doneWhen = list(opts, "done-when");
   if (title === "") throw new UserError("title can't be empty");
   if (!status && !type && title === void 0 && note === void 0 && !doneWhen.length)
@@ -549,8 +946,8 @@ function update(ctx, { pos, opts }) {
 function statusCommand(to) {
   return (ctx, { pos, opts }) => {
     const keyArg = need(pos, 0, "card key");
-    const by = actor(ctx, str(opts, "by"));
-    const note = str(opts, "note");
+    const by = actor(ctx, str2(opts, "by"));
+    const note = str2(opts, "note");
     const f = mutateBoard(requireBoard(ctx), (b) => {
       const f2 = findFeature(b, keyArg);
       setStatus(ctx, f2, to, by, note);
@@ -559,13 +956,10 @@ function statusCommand(to) {
     emit(ctx, opts, f, `${f.key} ${f.title} \u2192 ${f.status}`);
   };
 }
-var park = statusCommand("parked");
-var review = statusCommand("review");
-var done = statusCommand("done");
 function step(ctx, { pos, opts }) {
   const keyArg = need(pos, 0, "card key");
   const text = need(pos, 1, `step text or number (e.g. board step LOOP-3 "Render buffer")`).trim();
-  const by = actor(ctx, str(opts, "by"));
+  const by = actor(ctx, str2(opts, "by"));
   if (opts.done && opts.undone) throw new UserError("use --done or --undone, not both");
   const { f, msg } = mutateBoard(requireBoard(ctx), (b) => {
     const f2 = findFeature(b, keyArg);
@@ -594,9 +988,9 @@ function step(ctx, { pos, opts }) {
 }
 function merge(ctx, { pos, opts }) {
   const fromArg = need(pos, 0, "card to merge (board merge LOOP-15 --into LOOP-3)");
-  const intoArg = str(opts, "into");
+  const intoArg = str2(opts, "into");
   if (!intoArg) throw new UserError("missing --into <card>");
-  const by = actor(ctx, str(opts, "by"));
+  const by = actor(ctx, str2(opts, "by"));
   const { from, into } = mutateBoard(requireBoard(ctx), (b) => {
     const from2 = findFeature(b, fromArg);
     const into2 = findFeature(b, intoArg);
@@ -619,11 +1013,11 @@ function touch(ctx, { pos, opts }) {
   const loc = findBoard(ctx.cwd);
   const nothing = (why) => opts.json ? ctx.out(JSON.stringify({ card: null, added: [], reason: why })) : void 0;
   if (!loc) return nothing("no board");
-  const rels = pos.map((p) => import_node_path5.default.relative(loc.root, import_node_path5.default.resolve(ctx.cwd, p))).filter((r) => r && !r.startsWith("..") && !import_node_path5.default.isAbsolute(r)).map((r) => r.split(import_node_path5.default.sep).join("/")).filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
+  const rels = pos.map((p) => import_node_path7.default.relative(loc.root, import_node_path7.default.resolve(ctx.cwd, p))).filter((r) => r && !r.startsWith("..") && !import_node_path7.default.isAbsolute(r)).map((r) => r.split(import_node_path7.default.sep).join("/")).filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
   if (!rels.length) return nothing("no files inside the project");
   const probe = activeFeature(readBoard(loc.file));
   if (!probe || rels.every((r) => probe.files.includes(r))) return nothing(probe ? "already attached" : "no active card");
-  const by = actor(ctx, str(opts, "by"));
+  const by = actor(ctx, str2(opts, "by"));
   const res = mutateBoard(loc, (b) => {
     const f = activeFeature(b);
     if (!f) return null;
@@ -635,40 +1029,57 @@ function touch(ctx, { pos, opts }) {
   if (!res || !res.added.length) return nothing("already attached");
   emit(ctx, opts, { card: res.f.key, added: res.added }, `${res.f.key} + ${res.added.join(", ")}`);
 }
+function remove(ctx, { pos, opts }) {
+  const keyArg = need(pos, 0, "card key");
+  const f = mutateBoard(requireBoard(ctx), (b) => {
+    const f2 = findFeature(b, keyArg);
+    b.features = b.features.filter((x) => x !== f2);
+    return f2;
+  });
+  emit(ctx, opts, f, `Deleted ${f.key} ${f.title}`);
+}
+function ui(ctx, { opts }) {
+  const port = str2(opts, "port") ? Number(str2(opts, "port")) : void 0;
+  if (port !== void 0 && (!Number.isInteger(port) || port < 1 || port > 65535)) throw new UserError("--port must be a port number");
+  void Promise.resolve().then(() => (init_server(), server_exports)).then(({ listen: listen2, DEFAULT_PORT: DEFAULT_PORT2 }) => listen2(ctx, port ?? DEFAULT_PORT2)).then(({ url }) => {
+    const projects = readRegistry(ctx).length;
+    ctx.out(`Loose Ends \u2192 ${url}`);
+    ctx.out(`${projects} project${projects === 1 ? "" : "s"} \xB7 board data stays on this machine \xB7 Ctrl-C to stop`);
+    if (!opts["no-open"]) openBrowser(url);
+  }).catch((e) => {
+    ctx.err(`board: can't start the server: ${e.message}`);
+    process.exitCode = 1;
+  });
+}
+function openBrowser(url) {
+  const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
+  try {
+    (0, import_node_child_process.spawn)(cmd, [url], { stdio: "ignore", detached: true, shell: process.platform === "win32" }).unref();
+  } catch {
+  }
+}
+var import_node_child_process, import_node_fs7, import_node_path7, str2, list, park, review, done;
+var init_commands = __esm({
+  "cli/src/commands.ts"() {
+    "use strict";
+    import_node_child_process = require("node:child_process");
+    import_node_fs7 = __toESM(require("node:fs"), 1);
+    import_node_path7 = __toESM(require("node:path"), 1);
+    init_context();
+    init_features();
+    init_fsutil();
+    init_registry();
+    init_schema();
+    init_store();
+    str2 = (o, k) => typeof o[k] === "string" ? o[k] : void 0;
+    list = (o, k) => Array.isArray(o[k]) ? o[k] : [];
+    park = statusCommand("parked");
+    review = statusCommand("review");
+    done = statusCommand("done");
+  }
+});
 
 // cli/src/cli.ts
-var GLOBAL = {
-  json: { type: "boolean" },
-  by: { type: "string" },
-  dir: { type: "string", short: "C" },
-  help: { type: "boolean", short: "h" }
-};
-var s = { type: "string" };
-var many = { type: "string", multiple: true };
-var flag = { type: "boolean" };
-var COMMANDS = {
-  init: { usage: `init [--name "Looper"] [--key LOOP]`, options: { name: s, key: s }, run: init },
-  list: { usage: "list [--status parked[,review]] [--type bug] [--all]", options: { status: s, type: s, all: flag }, run: listCmd },
-  show: { usage: "show LOOP-3", options: {}, run: show },
-  add: {
-    usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]...`,
-    options: { status: s, type: s, next: s, note: s, step: many, "done-when": many },
-    run: add
-  },
-  update: {
-    usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]...",
-    options: { title: s, note: s, next: s, status: s, type: s, "done-when": many },
-    run: update
-  },
-  step: { usage: `step LOOP-3 "Render buffer"|2 [--done|--undone|--remove]`, options: { done: flag, undone: flag, remove: flag }, run: step },
-  park: { usage: `park LOOP-3 --note "Where we stopped"`, options: { note: s }, run: park },
-  review: { usage: `review LOOP-3 [--note "What to check"]`, options: { note: s }, run: review },
-  done: { usage: "done LOOP-3", options: {}, run: done },
-  merge: { usage: "merge LOOP-15 --into LOOP-3", options: { into: s }, run: merge },
-  touch: { usage: "touch <file>...", options: {}, run: touch },
-  context: { usage: "context", options: {}, run: context }
-};
-var LATER = { ui: "phase 3", login: "phase 5", logout: "phase 5", telemetry: "phase 5" };
 function helpText() {
   return [
     "board \u2014 the Loose Ends feature board",
@@ -712,7 +1123,7 @@ usage: board ${command.usage}`);
       ctx.out(`usage: board ${command.usage}`);
       return 0;
     }
-    const dir = typeof opts.dir === "string" ? import_node_path6.default.resolve(ctx.cwd, opts.dir) : ctx.cwd;
+    const dir = typeof opts.dir === "string" ? import_node_path8.default.resolve(ctx.cwd, opts.dir) : ctx.cwd;
     command.run({ ...ctx, cwd: dir }, { pos: parsed.positionals, opts });
     return 0;
   } catch (e) {
@@ -721,8 +1132,53 @@ usage: board ${command.usage}`);
     return 1;
   }
 }
+var import_node_path8, import_node_util, GLOBAL, s, many, flag, COMMANDS, LATER;
+var init_cli = __esm({
+  "cli/src/cli.ts"() {
+    "use strict";
+    import_node_path8 = __toESM(require("node:path"), 1);
+    import_node_util = require("node:util");
+    init_commands();
+    init_context();
+    GLOBAL = {
+      json: { type: "boolean" },
+      by: { type: "string" },
+      dir: { type: "string", short: "C" },
+      help: { type: "boolean", short: "h" }
+    };
+    s = { type: "string" };
+    many = { type: "string", multiple: true };
+    flag = { type: "boolean" };
+    COMMANDS = {
+      init: { usage: `init [--name "Looper"] [--key LOOP]`, options: { name: s, key: s }, run: init },
+      list: { usage: "list [--status parked[,review]] [--type bug] [--all]", options: { status: s, type: s, all: flag }, run: listCmd },
+      show: { usage: "show LOOP-3", options: {}, run: show },
+      add: {
+        usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]...`,
+        options: { status: s, type: s, next: s, note: s, step: many, "done-when": many },
+        run: add
+      },
+      update: {
+        usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]...",
+        options: { title: s, note: s, next: s, status: s, type: s, "done-when": many },
+        run: update
+      },
+      step: { usage: `step LOOP-3 "Render buffer"|2 [--done|--undone|--remove]`, options: { done: flag, undone: flag, remove: flag }, run: step },
+      park: { usage: `park LOOP-3 --note "Where we stopped"`, options: { note: s }, run: park },
+      review: { usage: `review LOOP-3 [--note "What to check"]`, options: { note: s }, run: review },
+      done: { usage: "done LOOP-3", options: {}, run: done },
+      merge: { usage: "merge LOOP-15 --into LOOP-3", options: { into: s }, run: merge },
+      delete: { usage: "delete LOOP-3", options: {}, run: remove },
+      touch: { usage: "touch <file>...", options: {}, run: touch },
+      context: { usage: "context", options: {}, run: context },
+      ui: { usage: "ui [--port 4747] [--no-open]", options: { port: s, "no-open": flag }, run: ui }
+    };
+    LATER = { login: "phase 5", logout: "phase 5", telemetry: "phase 5" };
+  }
+});
 
 // cli/src/index.ts
+init_cli();
 process.exitCode = run(process.argv.slice(2), {
   cwd: process.cwd(),
   env: process.env,

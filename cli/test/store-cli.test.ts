@@ -60,7 +60,7 @@ describe("board file handling", () => {
 describe("cli surface", () => {
   it("prints help and lists every spec command", () => {
     const sb = sandbox();
-    for (const cmd of ["init", "list", "show", "add", "update", "step", "park", "review", "done", "merge", "touch", "context"])
+    for (const cmd of ["init", "list", "show", "add", "update", "step", "park", "review", "done", "merge", "delete", "touch", "context", "ui"])
       expect(helpText()).toContain(`board ${cmd}`);
     expect(sb.board().out).toContain("board — the Loose Ends feature board");
     expect(sb.board("help").code).toBe(0);
@@ -77,7 +77,7 @@ describe("cli surface", () => {
 
   it("says which phase the unbuilt commands belong to", () => {
     const sb = withBoard();
-    for (const [cmd, phase] of [["ui", "phase 3"], ["login", "phase 5"], ["logout", "phase 5"], ["telemetry", "phase 5"]] as const) {
+    for (const [cmd, phase] of [["login", "phase 5"], ["logout", "phase 5"], ["telemetry", "phase 5"]] as const) {
       const r = sb.board(cmd);
       expect(r.code).toBe(1);
       expect(r.err).toContain(phase);
