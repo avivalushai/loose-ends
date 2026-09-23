@@ -301,10 +301,21 @@
         }
       ],
       "files": [
-        "DOGFOOD.md"
+        "DOGFOOD.md",
+        "site/lib/device.ts",
+        "site/lib/store.ts",
+        "site/lib/site.ts",
+        "site/lib/auth.ts",
+        "site/app/page.tsx",
+        "site/app/privacy/page.tsx",
+        "site/app/link/page.tsx",
+        "cli/src/account.ts",
+        "cli/src/analytics.ts",
+        "cli/test/account.test.ts",
+        "cli/test/site.test.ts"
       ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:42:11Z",
+      "updatedAt": "2026-09-23T14:08:39Z",
       "updatedBy": "claude",
       "log": [
         {
@@ -358,38 +369,63 @@
       "key": "LE-5",
       "title": "Site, sign-up and analytics",
       "type": "feature",
-      "status": "idea",
-      "note": "Needs accounts first: GitHub repo, Vercel, Clerk or Auth.js, PostHog EU, domain",
+      "status": "review",
+      "note": "Built and tested, but it needs your accounts: Clerk keys, Supabase project + schema.sql, Vercel, PostHog EU, and the domain. site/README.md has the table",
       "doneWhen": [
         "Someone can sign up and install the plugin from the site"
       ],
       "steps": [
         {
           "text": "Landing page + privacy page",
-          "done": false
+          "done": true
         },
         {
           "text": "Sign-up with Google/GitHub",
-          "done": false
+          "done": true
         },
         {
           "text": "board login device-code flow",
-          "done": false
+          "done": true
         },
         {
           "text": "Anonymous events",
-          "done": false
+          "done": true
         }
       ],
       "files": [],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T14:08:39Z",
       "updatedBy": "claude",
       "log": [
         {
           "at": "2026-09-23T13:02:51Z",
           "by": "claude",
           "text": "Created"
+        },
+        {
+          "at": "2026-09-23T14:08:38Z",
+          "by": "claude",
+          "text": "Step done: Landing page + privacy page"
+        },
+        {
+          "at": "2026-09-23T14:08:38Z",
+          "by": "claude",
+          "text": "Step done: Sign-up with Google/GitHub"
+        },
+        {
+          "at": "2026-09-23T14:08:39Z",
+          "by": "claude",
+          "text": "Step done: board login device-code flow"
+        },
+        {
+          "at": "2026-09-23T14:08:39Z",
+          "by": "claude",
+          "text": "Step done: Anonymous events"
+        },
+        {
+          "at": "2026-09-23T14:08:39Z",
+          "by": "claude",
+          "text": "Moved to review — Built and tested, but it needs your accounts: Clerk keys, Supabase project + schema.sql, Vercel, PostHog EU, and the domain. site/README.md has the table"
         }
       ]
     }

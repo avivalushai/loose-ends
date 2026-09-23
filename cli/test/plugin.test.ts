@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import type { Env } from "../src/context.js";
 import { sandbox, withBoard } from "./helpers.js";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -10,11 +11,11 @@ const read = (p: string) => fs.readFileSync(path.join(repo, p), "utf8");
 const readJson = (p: string) => JSON.parse(read(p));
 
 /** Run a hook script the way Claude Code does: JSON on stdin, JSON or nothing on stdout. */
-function runHook(script: string, input: unknown, env: NodeJS.ProcessEnv = {}) {
+function runHook(script: string, input: unknown, env: Env = {}) {
   const out = execFileSync(process.execPath, [path.join(repo, "hooks", script)], {
     input: JSON.stringify(input),
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: { ...process.env, ...env } as NodeJS.ProcessEnv,
   });
   return { raw: out, json: out.trim() ? JSON.parse(out) : null };
 }

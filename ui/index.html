@@ -368,7 +368,9 @@ const COLS=[
 
 /* ---------- data: the local server ---------- */
 /* Served by `board ui`. The hosted UI reaches the same API on localhost:4747. */
-const API=location.protocol.startsWith('http')?location.origin:'http://localhost:4747';
+/* Served by `board ui` → talk to this origin. Hosted on the site → talk to the local server. */
+const LOCAL=/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+const API=LOCAL.test(location.origin)?location.origin:'http://localhost:4747';
 
 async function api(path,opts){
   const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});

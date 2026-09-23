@@ -44,9 +44,10 @@ const COMMANDS: Record<string, Command> = {
   touch: { usage: "touch <file>...", options: {}, run: cmd.touch },
   context: { usage: "context", options: {}, run: cmd.context },
   ui: { usage: "ui [--port 4747] [--no-open]", options: { port: s, "no-open": flag }, run: cmd.ui },
+  login: { usage: "login [--no-open]", options: { "no-open": flag }, run: cmd.login },
+  logout: { usage: "logout", options: {}, run: cmd.logout },
+  telemetry: { usage: "telemetry [off|on|status]", options: {}, run: cmd.telemetry },
 };
-
-const LATER: Record<string, string> = { login: "phase 5", logout: "phase 5", telemetry: "phase 5" };
 
 export function helpText(): string {
   return [
@@ -70,10 +71,6 @@ export function run(argv: string[], ctx: Ctx): number {
   if (name === "--version" || name === "-v") {
     ctx.out("0.1.0");
     return 0;
-  }
-  if (LATER[name]) {
-    ctx.err(`board ${name} isn't built yet (coming in ${LATER[name]}).`);
-    return 1;
   }
   const command = COMMANDS[name];
   if (!command) {

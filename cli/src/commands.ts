@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { clearAuth, readAuth, readSettings, siteUrl, writeAuth, writeSettings } from "./account.js";
+import { track } from "./analytics.js";
 import { type Ctx, UserError, actor, nowIso } from "./context.js";
 import {
   activeFeature,
@@ -397,4 +399,90 @@ function openBrowser(url: string): void {
   } catch {
     /* no browser is fine — the URL is printed above */
   }
+}
+
+// --- account (SPEC §9) ---------------------------------------------------
+
+async function postJson(url: string, body: unknown, timeoutMs = 10_000): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    const json = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new UserError(json.error || `${res.status} ${res.statusText}`);
+    return json;
+  } catch (e) {
+    if (e instanceof UserError) throw e;
+    if ((e as Error).name === "AbortError") throw new UserError(`${url} didn't answer in time`);
+    throw new UserError(`can't reach ${url}: ${(e as Error).message}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Device-code sign-in: the CLI shows a code, the browser approves it. */
+export function login(ctx: Ctx, { opts }: Args) {
+  const site = siteUrl(ctx);
+  void (async () => {
+    try {
+      const start = await postJson(`${site}/api/device/start`, {});
+      const verifyUrl: string = start.verifyUrl ?? `${site}/link?code=${start.userCode}`;
+      ctx.out(`Your code: ${start.userCode}`);
+      ctx.out(`Approve it at ${verifyUrl}`);
+      if (!opts["no-open"]) openBrowser(verifyUrl);
+
+      const intervalMs = Math.max(1, Number(start.interval) || 2) * 1000;
+      const deadline = Date.now() + (Number(start.expiresIn) || 600) * 1000;
+      for (;;) {
+        await wait(intervalMs);
+        if (Date.now() > deadline) throw new UserError("the code expired — run `board login` again");
+        const poll = await postJson(`${site}/api/device/poll`, { deviceCode: start.deviceCode });
+        if (poll.status === "pending") continue;
+        if (poll.status === "denied") throw new UserError("sign-in was declined");
+        if (poll.status === "expired") throw new UserError("the code expired — run `board login` again");
+        if (poll.status !== "approved" || !poll.token) throw new UserError(`unexpected answer: ${JSON.stringify(poll)}`);
+
+        writeAuth(ctx, { token: poll.token, userId: poll.userId, email: poll.email, name: poll.name, site });
+        track(ctx, "login", { source: "cli" });
+        ctx.out(poll.email ? `Signed in as ${poll.email}` : "Signed in");
+        ctx.out("Your boards stay on this machine — signing in only ties usage counts to your account.");
+        return;
+      }
+    } catch (e) {
+      ctx.err(`board: ${e instanceof UserError ? e.message : (e as Error).message}`);
+      process.exitCode = 1;
+    }
+  })();
+}
+
+export function logout(ctx: Ctx, { opts }: Args) {
+  const had = clearAuth(ctx);
+  emit(ctx, opts, { signedOut: had }, had ? "Signed out" : "You weren't signed in");
+}
+
+/** `board telemetry off | on | status` */
+export function telemetry(ctx: Ctx, { pos, opts }: Args) {
+  const arg = (pos[0] ?? "status").toLowerCase();
+  if (!["on", "off", "status"].includes(arg)) throw new UserError("use `board telemetry off`, `on` or `status`");
+  const settings = readSettings(ctx);
+  if (arg !== "status") {
+    settings.telemetry = arg === "on";
+    settings.toldAboutTelemetry = true;
+    writeSettings(ctx, settings);
+  }
+  const auth = readAuth(ctx);
+  emit(ctx, opts, { telemetry: settings.telemetry, signedIn: !!auth, installId: settings.installId }, [
+    settings.telemetry
+      ? "Telemetry on — action names and counts only, never titles, notes or paths."
+      : "Telemetry off — nothing is sent.",
+    auth ? `Signed in as ${auth.email ?? auth.userId}` : "Not signed in (events would be anonymous).",
+  ]);
 }

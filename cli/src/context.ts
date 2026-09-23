@@ -2,10 +2,14 @@ import os from "node:os";
 import path from "node:path";
 import type { Actor } from "./schema.js";
 
+/** Environment as the CLI cares about it — not NodeJS.ProcessEnv, whose shape
+ *  changes with whatever @types packages happen to be installed. */
+export type Env = Record<string, string | undefined>;
+
 /** Everything a command needs from the outside world — injectable for tests. */
 export interface Ctx {
   cwd: string;
-  env: NodeJS.ProcessEnv;
+  env: Env;
   out: (line: string) => void;
   err: (line: string) => void;
 }

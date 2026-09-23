@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach } from "vitest";
+import type { Env } from "../src/context.js";
 import { run } from "../src/cli.js";
 
 const made: string[] = [];
@@ -12,7 +13,7 @@ afterEach(() => {
 export interface Sandbox {
   root: string; // project folder
   home: string; // LOOSE_ENDS_HOME
-  env: NodeJS.ProcessEnv;
+  env: Env;
   board: (...argv: string[]) => { code: number; out: string; err: string };
   json: <T = any>(...argv: string[]) => T;
   read: () => any;
@@ -20,7 +21,7 @@ export interface Sandbox {
   registry: () => any[];
 }
 
-export function sandbox(env: NodeJS.ProcessEnv = {}): Sandbox {
+export function sandbox(env: Env = {}): Sandbox {
   const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "le-test-")));
   made.push(base);
   const root = path.join(base, "my-app");
@@ -49,7 +50,7 @@ export function sandbox(env: NodeJS.ProcessEnv = {}): Sandbox {
 }
 
 /** Sandbox with an initialized board (key APP). */
-export function withBoard(env?: NodeJS.ProcessEnv): Sandbox {
+export function withBoard(env?: Env): Sandbox {
   const sb = sandbox(env);
   const r = sb.board("init", "--name", "My App", "--key", "APP");
   if (r.code !== 0) throw new Error(r.err);

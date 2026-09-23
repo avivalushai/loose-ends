@@ -7,7 +7,15 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["cli/src", "cli/test", "server/src", "vitest.config.ts"]
+  "include": [
+    "cli/src",
+    "cli/test",
+    "server/src",
+    "site/lib",
+    "vitest.config.ts"
+  ]
 }

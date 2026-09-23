@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import type { Env } from "../src/context.js";
 import { sandbox } from "./helpers.js";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -11,7 +12,7 @@ const bundle = path.join(repo, "bin/board.cjs");
 
 // The plugin ships these files, not cli/src — so they get their own end-to-end test.
 describe("bundled bin/board", () => {
-  const run = (args: string[], cwd: string, env: NodeJS.ProcessEnv) =>
+  const run = (args: string[], cwd: string, env: Env) =>
     execFileSync(bin, args, { cwd, env: { ...process.env, ...env }, encoding: "utf8" });
 
   it("ships an executable wrapper and a CommonJS bundle", () => {
@@ -28,7 +29,7 @@ describe("bundled bin/board", () => {
     const sb = sandbox();
     const out = execFileSync("board", ["--version"], {
       cwd: sb.root,
-      env: { ...process.env, ...sb.env, PATH: `${path.join(repo, "bin")}:${process.env.PATH}` },
+      env: { ...process.env, ...sb.env, PATH: `${path.join(repo, "bin")}:${process.env.PATH}` } as NodeJS.ProcessEnv,
       encoding: "utf8",
     });
     expect(out.trim()).toBe("0.1.0");
