@@ -269,23 +269,88 @@
     },
     {
       "key": "LE-4",
-      "title": "Dogfood on my own projects for 1–2 weeks",
+      "title": "Dogfood on Braille.AI and bud",
       "type": "chore",
-      "status": "idea",
-      "note": "Install on Looper, NehoRace, AgentLens, News Heatmap and tune the skill rules",
+      "status": "active",
+      "note": "Install the plugin, then work normally for two weeks — I'll ask the DOGFOOD.md questions at the end",
       "doneWhen": [
-        "Cards Claude created match what I actually worked on"
+        "Two weeks of real sessions on both projects",
+        "The skill rules changed in response to what actually went wrong",
+        "Most cards say 'Claude' in the Last by column"
       ],
-      "steps": [],
-      "files": [],
+      "steps": [
+        {
+          "text": "Board on Braille.AI, seeded from git history",
+          "done": true
+        },
+        {
+          "text": "Board on bud, seeded from git history",
+          "done": true
+        },
+        {
+          "text": "Install the plugin in Claude Code",
+          "done": false
+        },
+        {
+          "text": "Two weeks of real sessions",
+          "done": false
+        },
+        {
+          "text": "Tune the skill rules from what went wrong",
+          "done": false
+        }
+      ],
+      "files": [
+        "DOGFOOD.md"
+      ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:02:51Z",
+      "updatedAt": "2026-09-23T13:42:11Z",
       "updatedBy": "claude",
       "log": [
         {
           "at": "2026-09-23T13:02:51Z",
           "by": "claude",
           "text": "Created"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Started — Install the plugin, then work normally for two weeks — I'll ask the DOGFOOD.md questions at the end"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Renamed from “Dogfood on my own projects for 1–2 weeks”"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Updated done-when"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Step added (done): Board on Braille.AI, seeded from git history"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Step added (done): Board on bud, seeded from git history"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Step added: Install the plugin in Claude Code"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Step added: Two weeks of real sessions"
+        },
+        {
+          "at": "2026-09-23T13:42:11Z",
+          "by": "claude",
+          "text": "Step added: Tune the skill rules from what went wrong"
         }
       ]
     },
