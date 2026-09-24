@@ -7,7 +7,7 @@
   "settings": {
     "granularity": "normal"
   },
-  "nextNum": 17,
+  "nextNum": 18,
   "features": [
     {
       "key": "LE-1",
@@ -649,6 +649,28 @@
       "log": [
         {
           "at": "2026-09-24T14:21:45Z",
+          "by": "claude",
+          "text": "Created — review"
+        }
+      ]
+    },
+    {
+      "key": "LE-17",
+      "title": "Make the skill file agree with itself",
+      "type": "feature",
+      "status": "review",
+      "note": "Two authors left five contradictions; the cheat sheet, the questions rule and the checklist rule now match the CLI. Read it once before the fortnight",
+      "doneWhen": [],
+      "steps": [],
+      "files": [
+        "skills/loose-ends/SKILL.md"
+      ],
+      "createdAt": "2026-09-24T14:42:40Z",
+      "updatedAt": "2026-09-24T14:42:40Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T14:42:40Z",
           "by": "claude",
           "text": "Created — review"
         }

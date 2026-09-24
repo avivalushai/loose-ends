@@ -14,18 +14,18 @@ All board writes go through the `board` CLI. Never edit `.board/board.json` by h
 
 ```
 board context                                  # what's open, parked, in review
-board list [--status parked] [--json]
+board list [--status parked] [--type bug|chore|question] [--all] [--json]
 board show LE-3
-board add "Save loops to library" [--status active] [--next "..."] [--step "..."]... [--done-when "..."]...
-board update LE-3 [--title ...] [--note ...] [--status ...]
+board add "Save loops to library" [--status active] [--type bug|chore] [--next "..."] [--step "..."]... [--done-when "..."]... [--file path]...
+board update LE-3 [--title ...] [--note ...] [--status ...] [--type ...] [--file path]... [--unfile path]...
 board step LE-3 "Wire the Save button" [--done]
 board park LE-3 --note "Where we stopped"      # a note is required
 board review LE-3 [--note "What to check"]
 board done LE-3
 board merge LE-15 --into LE-3
 
-board ask "Which auth provider?" [--status active]     # a question is a card
-board answer LE-7 "What you found out" [--done]
+board ask "Which auth provider?" [--status active] [--note "..."]   # a question is a card
+board answer LE-7 "What you found out" [--done]        # --done only if they decided
 
 board note add brainstorm|plan|reference "Title" [--body ...] [--url ...] [--file ...] [--card LE-3]...
 board note list [--kind plan] · note show LE-N3 · note update LE-N3 ... · note link LE-N3 LE-4 · note rm LE-N3
@@ -33,6 +33,10 @@ board note list [--kind plan] · note show LE-N3 · note update LE-N3 ... · not
 
 The board has five tabs. Two hold cards: **Features** and **Questions**. Three
 hold notes: **Brainstorms**, **Plans**, **References**.
+
+Bugs and chores are cards too, and they live in Features alongside features —
+the tab holds the work, `--type` says what kind it is. Only `--type question`
+moves a card to the Questions tab, and `board ask` sets that for you.
 
 The line between them is the only rule that matters: **a card is work with a
 next step; a note is something you'd otherwise scroll back through the chat to
@@ -57,7 +61,8 @@ For each request:
 2. Takes more than one reply, or touches several files? → new card.
 3. Otherwise → a step on the active card, or don't record it.
 
-- Questions and chat → record nothing.
+- Chat, and questions you answer in the same reply → record nothing. A question
+  that needs looking into is a card: see **Questions**.
 - Several asks in one message → one card each. What you work on now is `active`,
   the rest are `idea`.
 - Vague asks ("make it nicer") → name the card by the screens you actually changed.
@@ -100,7 +105,9 @@ the user's.
 
 `board answer LE-7 "Clerk — device codes are built in"` records what you found
 and moves the card to **Answered**. Never jump to `--done` on the user's behalf:
-you answered the question, you didn't make the decision. When they decide, close
+you answered the question, you didn't make the decision. Use `--done` only when
+the user states the decision themselves in the same breath — "go with Clerk" —
+and then the answer you record is theirs, not yours. When they decide, close
 it — and if the decision creates work, add that card and say so in one line.
 
 ## Brainstorming
@@ -168,8 +175,12 @@ Rules that keep it useful:
   notes and evidence belong in the doc, not on the board.
 - **An unchecked checklist is work, whatever section it sits under.** "Open
   questions", "to decide", "follow-ups" — each unticked box is something someone
-  has to do, sitting in a document nobody reopens. Add those as `chore` cards.
-  A ticked box is already done: leave it.
+  has to do, sitting in a document nobody reopens. A ticked box is already done:
+  leave it. Which kind of card depends on what the box asks for:
+  - going and finding something out — a price, whether a rival already does it,
+    what a spec allows → `board ask "..."`
+  - doing something — a decision to make, a job to run, a cleanup →
+    `board add "..." --type chore`
 - Check `board list --all --json` first and skip what's already there, matching
   on meaning rather than exact titles. Plans get re-read; cards must not double.
 - Add each with `--file <the doc>` so the card points back at the reasoning.
