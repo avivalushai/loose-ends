@@ -118,6 +118,17 @@ section{margin-bottom:32px}
 .tabs{display:inline-flex;background:var(--sunk);border-radius:8px;padding:3px;gap:2px}
 .tabs button{border:0;background:none;padding:5px 12px;border-radius:6px;font-weight:500;color:var(--muted)}
 .tabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.tabs-top{margin:14px 0 2px}
+.tabs-top button .c{margin-left:6px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.tabs-top button[aria-pressed="true"] .c{color:var(--accent)}
+.pname{color:var(--muted)}
+.muted{color:var(--muted)}
+a.ext{color:var(--accent);text-decoration:none;font-family:var(--mono);font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+a.ext:hover{text-decoration:underline}
+.clink{font-family:var(--mono);font-size:11px;border:1px solid var(--line);background:var(--sunk);color:var(--muted);border-radius:5px;padding:1px 5px;margin-right:2px}
+.clink:hover{color:var(--accent);border-color:var(--accent)}
+.xbtn{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:2px 6px;border-radius:5px}
+.xbtn:hover{color:var(--s-parked);background:var(--sunk)}
 
 /* summary strip */
 .stats{display:flex;flex-wrap:wrap;gap:8px 22px;margin-bottom:18px;align-items:center}
@@ -364,6 +375,38 @@ const STATUSES=[
   {id:'idea',label:'Idea'},{id:'active',label:'In progress'},{id:'parked',label:'Parked'},
   {id:'review',label:'Review'},{id:'done',label:'Done'}];
 const SL=Object.fromEntries(STATUSES.map(s=>[s.id,s.label]));
+/* A question runs the same five statuses, but nobody says "in progress" about
+   a question — so the Questions tab renames them and nothing else changes. */
+const QSL={idea:'Open',active:'Looking into',parked:'Parked',review:'Answered',done:'Decided'};
+const sl=id=>(P.tab==='questions'?QSL:SL)[id];
+/* The note means something different per status — and again for a question. */
+const noteLabel=f=>f.type==='question'
+  ? (f.status==='review'||f.status==='done'?'Answer':f.status==='parked'?'Where you stopped':'What you\u2019re checking')
+  : (f.status==='parked'?'Where you stopped':f.status==='active'?'Next step':'Notes');
+const colLabel=c=>P.tab!=='questions'?c.label
+  :c.id==='note'?'Answer / what you\u2019re checking':c.id==='title'?'Question':c.label;
+
+/* The five tabs. Features and questions are cards; the rest are notes. */
+const TABS=[
+  {id:'features',label:'Features',note:null},
+  {id:'questions',label:'Questions',note:null},
+  {id:'brainstorms',label:'Brainstorms',note:'brainstorm'},
+  {id:'plans',label:'Plans',note:'plan'},
+  {id:'references',label:'References',note:'reference'}];
+const TAB=()=>TABS.find(t=>t.id===P.tab)||TABS[0];
+const isNoteTab=()=>!!TAB().note;
+/* What the second column holds, per kind: the thing you'd actually click. */
+const NOTE_EMPTY={
+  brainstorm:'No brainstorms yet. Claude adds one when a conversation lands on something worth keeping.',
+  plan:'No plans yet. Point one at a spec or plan document and the cards it produced stay tied to it.',
+  reference:'No references yet. Anything you looked up and would look up again belongs here.'};
+const NOTE_HINT={
+  brainstorm:'A brainstorm is the thinking, not the work — what it decided lives on the cards it links to.',
+  plan:'Plans hold the reasoning; the board holds the state. Editing a card never edits the document.',
+  reference:'Links you would otherwise have to scroll back through the chat to find.'};
+const NOTEFIELD={brainstorm:{k:'body',label:'What came of it',ph:'What was decided'},
+  plan:{k:'file',label:'Document',ph:'docs/plan.md'},
+  reference:{k:'url',label:'Link',ph:'https://…'}};
 const GORDER={parked:0,active:1,review:2,idea:3,done:4};
 const KEY='looseends.v2';
 const NOW=Date.now(), M=60000, H=60*M, D=24*H;
@@ -377,7 +420,7 @@ const COLS=[
   {id:'project',label:'Project',w:124,sort:'project',home:true},
   {id:'title',label:'Feature',w:380,sort:'title',lock:true},
   {id:'status',label:'Status',w:136,sort:'status'},
-  {id:'note',label:'Next step / where stopped',w:260},
+  {id:'note',label:'Next step / where stopped',w:300,flex:true},
   {id:'progress',label:'Progress',w:120,sort:'progress'},
   {id:'steps',label:'Steps',w:70},
   {id:'files',label:'Files',w:64},
@@ -404,12 +447,18 @@ const toFeature=(pid,c)=>({id:pid+':'+c.key,key:c.key,num:+c.key.slice(c.key.las
   createdAt:Date.parse(c.createdAt),updatedAt:Date.parse(c.updatedAt),by:c.updatedBy==='claude'?'claude':'you',
   log:(c.log||[]).map(l=>({at:Date.parse(l.at),by:l.by==='claude'?'claude':'you',text:l.text}))});
 
+const toNote=(pid,n)=>({id:pid+':'+n.id,nid:n.id,project:pid,kind:n.kind,title:n.title,
+  body:n.body||'',url:n.url||'',file:n.file||'',cards:(n.cards||[]).slice(),
+  createdAt:Date.parse(n.createdAt),updatedAt:Date.parse(n.updatedAt),by:n.updatedBy==='claude'?'claude':'you'});
+
 async function loadAll(){
   const ps=await api('/api/projects');
   S.projects=ps.map((p,i)=>({id:p.id,key:p.key,name:p.name,path:p.path,color:PCOLORS[i%PCOLORS.length],error:p.error}));
   const boards=await Promise.all(ps.map(p=>p.error?Promise.resolve(null):api('/api/projects/'+p.id+'/board').catch(()=>null)));
-  S.features=[];
-  boards.forEach((b,i)=>{ if(b) for(const c of b.features) S.features.push(toFeature(ps[i].id,c)) });
+  S.features=[]; S.notes=[];
+  boards.forEach((b,i)=>{ if(!b) return;
+    for(const c of b.features) S.features.push(toFeature(ps[i].id,c));
+    for(const n of b.notes||[]) S.notes.push(toNote(ps[i].id,n)) });
   S.unlinked=await api('/api/discover').catch(()=>[]);
   if(view!=='home'&&!proj(view)) view='home';
 }
@@ -426,6 +475,7 @@ async function loadProject(id){
   const b=await api('/api/projects/'+id+'/board').catch(()=>null);
   if(!b) return loadAll();
   S.features=S.features.filter(f=>f.project!==id).concat(b.features.map(c=>toFeature(id,c)));
+  S.notes=S.notes.filter(n=>n.project!==id).concat((b.notes||[]).map(n=>toNote(id,n)));
   const p=proj(id); if(p){p.name=b.project.name;p.key=b.project.key}
 }
 
@@ -447,9 +497,30 @@ async function deleteCard(f){
   catch(e){ toast(e.message); return false }
 }
 
-let S={projects:[],features:[],unlinked:[]};
+/* Notes go through the same CLI-backed API as cards. */
+function replaceNote(pid,raw){
+  const n=toNote(pid,raw), i=S.notes.findIndex(x=>x.id===n.id);
+  if(i>=0) S.notes[i]=n; else S.notes.push(n);
+  return n;
+}
+async function addNote(pid,body){
+  try{ return replaceNote(pid,await api('/api/projects/'+pid+'/notes',{method:'POST',body:JSON.stringify(body)})) }
+  catch(e){ toast(e.message); return null }
+}
+async function saveNote(n,body){
+  try{ replaceNote(n.project,await api('/api/projects/'+n.project+'/notes/'+n.nid,{method:'PATCH',body:JSON.stringify(body)}));
+       render(); return true }
+  catch(e){ toast(e.message); await loadProject(n.project); render(); return false }
+}
+async function deleteNote(n){
+  try{ await api('/api/projects/'+n.project+'/notes/'+n.nid,{method:'DELETE'});
+       S.notes=S.notes.filter(x=>x.id!==n.id); render(); return true }
+  catch(e){ toast(e.message); return false }
+}
+
+let S={projects:[],features:[],notes:[],unlinked:[]};
 let live=false, dirty=false, pendingPark=null;
-let P={mode:'table',group:'status',density:'comfy',hidden:['files'],hideDone:false,collapsed:['idea']};
+let P={tab:'features',mode:'table',group:'status',density:'comfy',hidden:['files'],hideDone:false,collapsed:['idea']};
 try{Object.assign(P,JSON.parse(localStorage.getItem(KEY+'.prefs'))||{})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem(KEY+'.prefs',JSON.stringify(P))}catch(e){}};
 let view='home', query='', openId=null, sort={k:'updated',dir:1}, filter='all', addingProject=false, editingNote=null;
@@ -460,7 +531,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function ago(t){const d=Date.now()-t; if(d<H) return Math.max(1,Math.round(d/M))+'m'; if(d<D) return Math.round(d/H)+'h'; return Math.round(d/D)+'d'}
 const color=s=>`var(--s-${s})`;
 const who=by=>`<span class="who ${by}"><b>${by==='claude'?'C':'Y'}</b><span>${by==='claude'?'Claude':'You'}</span></span>`;
-const pf=id=>S.features.filter(f=>f.project===id);
+const pf=id=>S.features.filter(f=>f.project===id&&f.type!=='question');
+const pn=id=>S.notes.filter(n=>n.project===id);
 const proj=id=>S.projects.find(p=>p.id===id);
 const fkey=f=>f.key;
 const pbadge=(p,sm)=>`<span class="pkey ${sm?'sm':''}" style="background:${p.color}">${esc(p.key.slice(0,2))}</span>`;
@@ -506,30 +578,67 @@ function renderNav(){
 }
 
 /* ---------- page ---------- */
+/* Cards in the current tab: Questions holds the question cards, Features the rest. */
+function tabCards(){
+  const p=proj(view), base=p?S.features.filter(f=>f.project===p.id):S.features;
+  return base.filter(f=>P.tab==='questions'?f.type==='question':f.type!=='question');
+}
 function scopeFeatures(){
-  const p=proj(view), q=query.toLowerCase();
-  return (p?pf(p.id):S.features).filter(f=>
+  const q=query.toLowerCase();
+  return tabCards().filter(f=>
     (filter==='all'||f.status===filter)&&(!P.hideDone||f.status!=='done'||filter==='done')&&
     (!q||f.title.toLowerCase().includes(q)||(f.note||'').toLowerCase().includes(q)||fkey(f).toLowerCase().includes(q)));
 }
+function scopeNotes(){
+  const p=proj(view), q=query.toLowerCase(), kind=TAB().note;
+  return (p?pn(p.id):S.notes).filter(n=>n.kind===kind&&
+    (!q||n.title.toLowerCase().includes(q)||n.body.toLowerCase().includes(q)||
+       n.url.toLowerCase().includes(q)||n.file.toLowerCase().includes(q)||n.nid.toLowerCase().includes(q)));
+}
+/* Counts for the tab strip, in the current project or across all of them. */
+function tabCount(t){
+  const p=proj(view);
+  if(t.note) return (p?pn(p.id):S.notes).filter(n=>n.kind===t.note).length;
+  const base=p?S.features.filter(f=>f.project===p.id):S.features;
+  return base.filter(f=>t.id==='questions'?f.type==='question':f.type!=='question').length;
+}
+function tabStrip(){
+  return `<div class="tabs tabs-top" role="group" aria-label="Section">${TABS.map(t=>
+    `<button data-tab="${t.id}" aria-pressed="${P.tab===t.id}">${t.label}<span class="c">${tabCount(t)}</span></button>`).join('')}</div>`;
+}
+/* One line under the title that means something on every tab. */
+function homeSub(parked){
+  const across=`across ${S.projects.length} project${S.projects.length===1?'':'s'}`;
+  if(isNoteTab()) return `${tabCount(TAB())} ${TAB().note}${tabCount(TAB())===1?'':'s'} ${across}.`;
+  if(P.tab==='questions'){
+    const open=tabCards().filter(f=>f.status!=='done').length;
+    return `${open} unsettled question${open===1?'':'s'} ${across}. Answered ones are waiting on a decision.`;
+  }
+  return `${parked} loose end${parked===1?'':'s'} ${across}. Parked work is listed first.`;
+}
 function renderPage(){
-  const p=proj(view), isHome=!p, all=p?pf(p.id):S.features;
+  const p=proj(view), isHome=!p, all=tabCards();
   const c=s=>all.filter(f=>f.status===s).length;
-  const parked=c('parked');
+  const parked=S.features.filter(f=>(!p||f.project===p.id)&&f.type!=='question'&&f.status==='parked').length;
+  const noun=P.tab==='questions'?'question':'feature';
   let h=`<div class="head"><div>
       ${p?`<div class="crumb">${pbadge(p)}<span class="mono">${esc(p.path)}</span></div><h1>${esc(p.name)}</h1>`
-         :`<h1>All features</h1><div class="sub">${parked} loose end${parked===1?'':'s'} across ${S.projects.length} projects. Parked work is listed first.</div>`}
+         :`<h1>All ${esc(TAB().label.toLowerCase())}</h1><div class="sub">${esc(homeSub(parked))}</div>`}
     </div>
-    <div class="toolbar"><input class="search" id="search" type="search" placeholder="Search features" value="${esc(query)}" aria-label="Search features">
+    <div class="toolbar"><input class="search" id="search" type="search" placeholder="Search ${esc(TAB().label.toLowerCase())}" value="${esc(query)}" aria-label="Search ${esc(TAB().label.toLowerCase())}">
       ${p?`<button class="btn" id="showJson">board.json</button>`:''}
-      <button class="btn primary" id="newBtn">+ New feature</button></div></div>
+      <button class="btn primary" id="newBtn">+ New ${isNoteTab()?esc(TAB().note):noun}</button></div></div>
+  ${tabStrip()}
+  ${isNoteTab()?renderNotesPage(isHome):''}`;
+  if(isNoteTab()) return h;
+  h+=`
   <div class="stats">
-    <div class="bigbar"><div class="stat"><b>${avgProg(all)}%</b> complete</div><div class="track">${STATUSES.map(s=>c(s.id)?`<span style="flex:${c(s.id)};background:${color(s.id)}" title="${s.label}: ${c(s.id)}"></span>`:'').join('')}</div></div>
-    ${STATUSES.map(s=>`<div class="stat"><span class="dot" style="background:${color(s.id)}"></span><b>${c(s.id)}</b>${s.label.toLowerCase()}</div>`).join('')}
+    <div class="bigbar"><div class="stat"><b>${avgProg(all)}%</b> complete</div><div class="track">${STATUSES.map(s=>c(s.id)?`<span style="flex:${c(s.id)};background:${color(s.id)}" title="${sl(s.id)}: ${c(s.id)}"></span>`:'').join('')}</div></div>
+    ${STATUSES.map(s=>`<div class="stat"><span class="dot" style="background:${color(s.id)}"></span><b>${c(s.id)}</b>${sl(s.id).toLowerCase()}</div>`).join('')}
   </div>
   <div class="chips" role="group" aria-label="Filter by status">
     <button data-filter="all" aria-pressed="${filter==='all'}">All <span class="c">${all.length}</span></button>
-    ${['parked','active','review','idea','done'].map(s=>`<button data-filter="${s}" aria-pressed="${filter===s}"><span class="dot" style="background:${color(s)}"></span>${SL[s]} <span class="c">${c(s)}</span></button>`).join('')}
+    ${['parked','active','review','idea','done'].map(s=>`<button data-filter="${s}" aria-pressed="${filter===s}"><span class="dot" style="background:${color(s)}"></span>${sl(s)} <span class="c">${c(s)}</span></button>`).join('')}
   </div>
   <div class="viewbar">
     <div class="tabs" role="group" aria-label="View">${['table','board','timeline'].map(m=>`<button data-mode="${m}" aria-pressed="${P.mode===m}">${ICON[m]}${m[0].toUpperCase()+m.slice(1)}</button>`).join('')}</div>
@@ -542,7 +651,7 @@ function renderPage(){
         <option value="comfy" ${P.density==='comfy'?'selected':''}>Comfortable</option>
         <option value="compact" ${P.density==='compact'?'selected':''}>Compact</option></select></span>
       <details class="cols"><summary class="opt" style="padding-right:9px">Columns · ${visibleCols(isHome).length}</summary><div class="menu">
-        ${COLS.filter(c=>!c.home||isHome).map(c=>`<label><input type="checkbox" data-col="${c.id}" ${!P.hidden.includes(c.id)?'checked':''} ${c.lock?'disabled':''}>${c.label}</label>`).join('')}
+        ${COLS.filter(c=>!c.home||isHome).map(c=>`<label><input type="checkbox" data-col="${c.id}" ${!P.hidden.includes(c.id)?'checked':''} ${c.lock?'disabled':''}>${colLabel(c)}</label>`).join('')}
       </div></details>`:''}
       <label class="opt"><input type="checkbox" id="hideDone" ${P.hideDone?'checked':''}>Hide done</label>
     </div>
@@ -557,12 +666,65 @@ function groupsOf(fs,isHome){
   const g=P.group==='project'&&!isHome?'status':P.group;
   if(g==='none') return [{id:null,items:fs}];
   if(g==='project') return S.projects.map(p=>({id:p.id,head:`${pbadge(p,true)} ${esc(p.name)}`,items:fs.filter(f=>f.project===p.id)})).filter(x=>x.items.length);
-  return ['parked','active','review','idea','done'].map(s=>({id:s,head:`<span class="dot" style="background:${color(s)}"></span> ${SL[s]}`,items:fs.filter(f=>f.status===s)})).filter(x=>x.items.length);
+  return ['parked','active','review','idea','done'].map(s=>({id:s,head:`<span class="dot" style="background:${color(s)}"></span> ${sl(s)}`,items:fs.filter(f=>f.status===s)})).filter(x=>x.items.length);
 }
 function sortFs(fs){
   const val={key:f=>fkey(f),project:f=>proj(f.project).name,title:f=>f.title.toLowerCase(),status:f=>GORDER[f.status],progress:progress,updated:f=>-f.updatedAt};
   const v=val[sort.k]||val.updated;
   return [...fs].sort((a,b)=>{const x=v(a),y=v(b);return (x>y?1:x<y?-1:(b.updatedAt-a.updatedAt))*sort.dir});
+}
+
+/* ---------- notes: brainstorms, plans, references ---------- */
+/* Notes have no status and no progress, so they get a plainer table: what it
+   is, where it points, and which cards came out of it. */
+function noteCols(isHome){
+  const f=NOTEFIELD[TAB().note];
+  return [{id:'id',label:'Id',w:92},...(isHome?[{id:'project',label:'Project',w:124}]:[]),
+    {id:'title',label:'Title',w:280},{id:'target',label:f.label,w:300},
+    {id:'cards',label:'Cards',w:132},{id:'updated',label:'Updated',w:92},{id:'by',label:'Last by',w:104},{id:'del',label:'',w:44}];
+}
+const cardLink=(pid,key)=>`<button class="clink" data-card="${pid+':'+key}">${esc(key)}</button>`;
+
+function noteCell(c,n,isHome){
+  const f=NOTEFIELD[n.kind];
+  switch(c.id){
+    case 'id': return `<td class="key">${esc(n.nid)}</td>`;
+    case 'project': return `<td>${pbadge(proj(n.project),true)} <span class="pname">${esc(proj(n.project).name)}</span></td>`;
+    case 'title': return `<td><input class="cell-in" data-nedit="title" data-id="${n.id}" value="${esc(n.title)}" aria-label="Title"></td>`;
+    case 'target': return `<td>${n.kind==='reference'&&n.url?`<a class="ext" href="${esc(n.url)}" target="_blank" rel="noreferrer noopener" title="${esc(n.url)}">${esc(n.url)}</a>`
+      :`<input class="cell-in ${n.kind==='plan'?'mono':''}" data-nedit="${f.k}" data-id="${n.id}" value="${esc(n[f.k])}" placeholder="${esc(f.ph)}" aria-label="${esc(f.label)}">`}</td>`;
+    case 'cards': return `<td>${n.cards.length?n.cards.map(k=>cardLink(n.project,k)).join(' '):'<span class="muted">—</span>'}</td>`;
+    case 'updated': return `<td class="mono">${ago(n.updatedAt)}</td>`;
+    case 'by': return `<td>${who(n.by)}</td>`;
+    case 'del': return `<td><button class="xbtn" data-ndel="${n.id}" title="Delete" aria-label="Delete ${esc(n.title)}">×</button></td>`;
+  }
+  return '<td></td>';
+}
+
+function noteComposer(cols,isHome){
+  const f=NOTEFIELD[TAB().note];
+  let out='';
+  for(const c of cols){
+    if(c.id==='id') out+=`<td class="key">+ New</td>`;
+    else if(c.id==='project') out+=`<td><select id="nProj" aria-label="Project">${S.projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></td>`;
+    else if(c.id==='title') out+=`<td><input id="nTitle" placeholder="${esc(TAB().note==='reference'?'What is it?':'Title')}" aria-label="New title"></td>`;
+    else if(c.id==='target') out+=`<td><input id="nTarget" class="${TAB().note==='plan'?'mono':''}" placeholder="${esc(f.ph)}" aria-label="${esc(f.label)}"></td>`;
+    else if(c.id==='cards'){ out+=`<td colspan="${cols.length-cols.indexOf(c)}"><button class="btn sm primary" id="nAdd">Add ${esc(TAB().note)}</button></td>`; break }
+    else out+='<td></td>';
+  }
+  return `<tr class="composer">${out}</tr>`;
+}
+
+function renderNotesPage(isHome){
+  const ns=scopeNotes().sort((a,b)=>b.updatedAt-a.updatedAt), cols=noteCols(isHome);
+  const f=NOTEFIELD[TAB().note];
+  let rows=S.projects.length?noteComposer(cols,isHome):'';
+  for(const n of ns) rows+=`<tr data-nrow="${n.id}">${cols.map(c=>noteCell(c,n,isHome)).join('')}</tr>`;
+  if(!ns.length) rows+=`<tr><td colspan="${cols.length}" class="empty">${esc(NOTE_EMPTY[TAB().note])}</td></tr>`;
+  const minW=cols.reduce((a,c)=>a+c.w,0);
+  return `<div class="tbl-wrap grid ${P.density==='compact'?'compact':''}" style="margin-top:14px"><table style="min-width:${minW}px">
+    <thead><tr>${cols.map(c=>`<th style="width:${c.w}px">${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="hint">${esc(NOTE_HINT[TAB().note])}</p>`;
 }
 
 /* ---------- table ---------- */
@@ -572,9 +734,9 @@ function cell(c,f){
     case 'key': return `<td><button class="keybtn" data-open="${f.id}" title="Open details">${fkey(f)}</button></td>`;
     case 'project': return `<td><span class="projcell">${pbadge(pr,true)}${esc(pr.name)}</span></td>`;
     case 'title': return `<td><input class="cell-in title" data-edit="title" data-id="${f.id}" value="${esc(f.title)}" aria-label="Feature title"></td>`;
-    case 'status': return `<td><span class="sel ${f.status}"><select class="status ${f.status}" data-edit="status" data-id="${f.id}" aria-label="Status">${STATUSES.map(s=>`<option value="${s.id}" ${s.id===f.status?'selected':''}>${s.label}</option>`).join('')}</select></span></td>`;
+    case 'status': return `<td><span class="sel ${f.status}"><select class="status ${f.status}" data-edit="status" data-id="${f.id}" aria-label="Status">${STATUSES.map(s=>`<option value="${s.id}" ${s.id===f.status?'selected':''}>${sl(s.id)}</option>`).join('')}</select></span></td>`;
     case 'note': {
-      const ph=f.status==='parked'?'Where did you stop?':f.status==='done'?'':'Next step';
+      const ph=f.status==='parked'?'Where did you stop?':f.status==='done'?'':noteLabel(f);
       if(editingNote===f.id) return `<td class="notecell editing"><input class="cell-in note" data-edit="note" data-id="${f.id}" value="${esc(f.note)}" placeholder="${ph}" aria-label="Next step or where you stopped"></td>`;
       return `<td class="notecell ${f.status}"><span class="txt">${f.note?esc(f.note):`<span class="ph">${ph}</span>`}</span><button class="pencil" data-editnote="${f.id}" aria-label="Edit note" title="Edit note"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M11.5 1.6 14.4 4.5 5.9 13H3v-2.9zM12.9.2a1 1 0 0 1 1.4 0l1.5 1.5a1 1 0 0 1 0 1.4l-1 1L11.9 1.2z"/></svg></button></td>`;
     }
@@ -592,9 +754,9 @@ function composerRow(cols,isHome){
     const c=cols[i];
     if(c.id==='key') out+=`<td class="key">+ New</td>`;
     else if(c.id==='project') out+=`<td><span class="sel">${projSel}</span></td>`;
-    else if(c.id==='title') out+=`<td><input id="cTitle" class="cell-in title" placeholder="Feature name, then Enter" aria-label="New feature name"></td>`;
-    else if(c.id==='status') out+=`<td><span class="sel"><select id="cStatus" aria-label="New feature status">${STATUSES.map(s=>`<option value="${s.id}" ${s.id===comp.status?'selected':''}>${s.label}</option>`).join('')}</select></span></td>`;
-    else if(c.id==='note') out+=`<td><input id="cNote" class="cell-in note" placeholder="Next step (optional)" aria-label="New feature next step"></td>`;
+    else if(c.id==='title') out+=`<td><input id="cTitle" class="cell-in title" placeholder="${P.tab==='questions'?'What do you need to find out?':'Feature name, then Enter'}" aria-label="New feature name"></td>`;
+    else if(c.id==='status') out+=`<td><span class="sel"><select id="cStatus" aria-label="New card status">${STATUSES.map(s=>`<option value="${s.id}" ${s.id===comp.status?'selected':''}>${sl(s.id)}</option>`).join('')}</select></span></td>`;
+    else if(c.id==='note') out+=`<td><input id="cNote" class="cell-in note" placeholder="${P.tab==='questions'?'What you need to find out':'Next step (optional)'}" aria-label="Note for the new card"></td>`;
     else break;
   }
   const rest=cols.length-i;
@@ -604,7 +766,7 @@ function composerRow(cols,isHome){
 }
 function renderTable(fs,isHome){
   const cols=visibleCols(isHome);
-  const th=c=>`<th style="width:${c.w}px">${c.sort?`<button data-sort="${c.sort}">${c.label}${sort.k===c.sort?`<span class="arr">${sort.dir>0?'↑':'↓'}</span>`:''}</button>`:c.label}</th>`;
+  const th=c=>`<th style="${c.flex?`min-width:${c.w}px`:`width:${c.w}px`}">${c.sort?`<button data-sort="${c.sort}">${colLabel(c)}${sort.k===c.sort?`<span class="arr">${sort.dir>0?'↑':'↓'}</span>`:''}</button>`:colLabel(c)}</th>`;
   let rows=composerRow(cols,isHome);
   for(const g of groupsOf(sortFs(fs),isHome)){
     const shut=g.id&&(P.collapsed||[]).includes(g.id);
@@ -612,9 +774,9 @@ function renderTable(fs,isHome){
     if(shut) continue;
     for(const f of g.items) rows+=`<tr data-row="${f.id}" class="${f.status==='parked'?'is-parked':''} ${f.status==='done'?'is-done':''} ${f.status==='idea'?'is-idea':''}">${cols.map(c=>cell(c,f)).join('')}</tr>`;
   }
-  if(!fs.length) rows+=`<tr><td colspan="${cols.length}" class="empty">No features match. Add one in the row above.</td></tr>`;
+  if(!fs.length) rows+=`<tr><td colspan="${cols.length}" class="empty">Nothing here yet. Add one in the row above.</td></tr>`;
   const minW=cols.reduce((a,c)=>a+c.w,0);
-  return `<div class="tbl-wrap grid ${P.density==='compact'?'compact':''}"><table style="min-width:${minW}px"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
+  return `<div class="tbl-wrap grid ${P.density==='compact'?'compact':''}"><table style="min-width:${minW}px;width:100%"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
   <p class="hint">Click a row to open its card. Titles and status are editable here; hover a note and click the pencil to change it.</p>`;
 }
 
@@ -624,7 +786,7 @@ function renderBoard(fs,isHome){
   for(const s of STATUSES){
     if(P.hideDone&&s.id==='done'&&filter!=='done') continue;
     const cs=fs.filter(f=>f.status===s.id).sort((a,b)=>b.updatedAt-a.updatedAt);
-    h+=`<div class="col" data-col="${s.id}"><div class="col-h"><span class="dot" style="background:${color(s.id)}"></span>${s.label}<span class="n">${cs.length}</span></div>`;
+    h+=`<div class="col" data-col="${s.id}"><div class="col-h"><span class="dot" style="background:${color(s.id)}"></span>${sl(s.id)}<span class="n">${cs.length}</span></div>`;
     for(const f of cs){
       h+=`<div class="card ${f.status}" draggable="true" data-open="${f.id}" data-id="${f.id}" tabindex="0" role="button" aria-label="${esc(f.title)}">
         <div class="t">${esc(f.title)}</div>${f.note&&['parked','active','review'].includes(f.status)?`<div class="note">${esc(f.note)}</div>`:''}
@@ -651,7 +813,7 @@ function renderTimeline(fs,isHome){
       if(f.status==='idea') marks=`<span class="tl-dot" style="left:${s}%" title="Added ${ago(f.createdAt)} ago"></span>`;
       else{
         const e=f.status==='active'?x(Date.now()):x(f.updatedAt);
-        marks=`<span class="tl-bar" style="left:${s}%;width:${Math.max(0.6,e-s)}%;background:${color(f.status)}" title="${SL[f.status]}"></span>`;
+        marks=`<span class="tl-bar" style="left:${s}%;width:${Math.max(0.6,e-s)}%;background:${color(f.status)}" title="${sl(f.status)}"></span>`;
         if(f.status==='parked'){const n=x(Date.now());marks+=`<span class="tl-idle" style="left:${e}%;width:${Math.max(0,n-e)}%"><span>idle ${ago(f.updatedAt)}</span></span>`}
       }
       body+=`<div class="tl-lbl" data-open="${f.id}"><span class="k">${fkey(f)}</span><span class="t">${esc(f.title)}</span></div>
@@ -690,14 +852,65 @@ async function setStatus(id,status){
 function openDialog(title,text){$('dlgTitle').textContent=title;$('dlgPre').textContent=text;$('dlg').showModal()}
 async function addFeature(projectId,title,status,note){
   try{
-    const card=await api('/api/projects/'+projectId+'/features',{method:'POST',body:JSON.stringify({title,status,note})});
+    const type=P.tab==='questions'?'question':'feature';
+    const card=await api('/api/projects/'+projectId+'/features',{method:'POST',body:JSON.stringify({title,status,note,type})});
     replaceCard(projectId,card); return card.key;
   }catch(e){ toast(e.message); return null }
+}
+
+function bindNotes(p,isHome){
+  if($('newBtn')) $('newBtn').onclick=()=>$('nTitle')?.focus();
+  const f=NOTEFIELD[TAB().note];
+  if($('nTitle')){
+    const submit=async()=>{
+      const t=$('nTitle').value.trim(); if(!t){$('nTitle').focus();return}
+      const pid=$('nProj')?$('nProj').value:(p?p.id:S.projects[0].id);
+      const n=await addNote(pid,{kind:TAB().note,title:t,[f.k]:$('nTarget').value.trim()});
+      if(!n) return;
+      $('nTitle').value=''; $('nTarget').value='';
+      render(); toast(n.nid+' added'); $('nTitle').focus();
+    };
+    [$('nTitle'),$('nTarget')].forEach(el=>el&&el.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit()}}));
+    if($('nAdd')) $('nAdd').onclick=submit;
+  }
+  document.querySelectorAll('[data-nedit]').forEach(el=>{
+    el.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();el.blur()}
+      if(e.key==='Escape'){el.value=S.notes.find(x=>x.id===el.dataset.id)[el.dataset.nedit];el.blur()}});
+    el.addEventListener('change',()=>{
+      const n=S.notes.find(x=>x.id===el.dataset.id); if(!n) return;
+      const k=el.dataset.nedit, v=el.value.trim();
+      if(k==='title'&&!v){el.value=n.title;return}
+      if(v===n[k]) return;
+      saveNote(n,{[k]:v}).then(ok=>ok&&toast('Saved'));
+    });
+  });
+  document.querySelectorAll('[data-ndel]').forEach(b=>b.onclick=()=>{
+    const n=S.notes.find(x=>x.id===b.dataset.ndel); if(!n) return;
+    if(confirm('Delete '+n.nid+' “'+n.title+'”?')) deleteNote(n).then(ok=>ok&&toast(n.nid+' deleted'));
+  });
+  // A card link jumps to the Features tab and opens the card it produced.
+  document.querySelectorAll('[data-card]').forEach(b=>b.onclick=()=>{
+    const f=S.features.find(x=>x.id===b.dataset.card); if(!f) return;
+    P.tab=f.type==='question'?'questions':'features'; filter='all'; savePrefs(); openId=f.id; render();
+  });
+}
+
+function bindTabs(){
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+    if(P.tab===b.dataset.tab) return;
+    P.tab=b.dataset.tab; filter='all'; openId=null; sort={k:'updated',dir:1}; savePrefs(); render();
+  });
 }
 
 function bindPage(){
   const p=proj(view), isHome=!p;
   $('search').oninput=e=>{query=e.target.value;const pos=e.target.selectionStart;render();const n=$('search');n.focus();n.setSelectionRange(pos,pos)};
+  bindTabs();
+  if(p&&$('showJson')) $('showJson').onclick=()=>api('/api/projects/'+p.id+'/board')
+    .then(b=>openDialog(p.path+'/.board/board.json',JSON.stringify(b,null,2)))
+    .catch(e=>toast(e.message));
+  if(isNoteTab()) return bindNotes(p,isHome);
   document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{P.mode=b.dataset.mode;savePrefs();render()});
   document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;render()});
   document.querySelectorAll('[data-sort]').forEach(b=>b.onclick=()=>{const k=b.dataset.sort;sort=sort.k===k?{k,dir:-sort.dir}:{k,dir:1};render()});
@@ -708,9 +921,6 @@ function bindPage(){
     P.collapsed=(P.collapsed||[]).includes(id)?P.collapsed.filter(x=>x!==id):[...(P.collapsed||[]),id];savePrefs();render()});
   document.querySelectorAll('[data-col]').forEach(c=>c.onchange=()=>{const id=c.dataset.col;P.hidden=c.checked?P.hidden.filter(x=>x!==id):[...P.hidden,id];savePrefs();render();document.querySelector('details.cols')?.setAttribute('open','')});
   $('newBtn').onclick=()=>{if(P.mode!=='table'){P.mode='table';savePrefs();render()}$('cTitle').focus()};
-  if(p) $('showJson').onclick=()=>api('/api/projects/'+p.id+'/board')
-    .then(b=>openDialog(p.path+'/.board/board.json',JSON.stringify(b,null,2)))
-    .catch(e=>toast(e.message));
 
   // composer
   if($('cTitle')){
@@ -731,7 +941,7 @@ function bindPage(){
     el.addEventListener('keydown',e=>{if(e.key==='Enter'&&el.tagName==='INPUT'){e.preventDefault();el.blur()}if(e.key==='Escape'){el.value=S.features.find(x=>x.id===el.dataset.id)[el.dataset.edit];el.blur()}});
     el.addEventListener('change',()=>{
       const f=S.features.find(x=>x.id===el.dataset.id); if(!f) return; const k=el.dataset.edit, v=el.value.trim();
-      if(k==='status'){setStatus(f.id,v).then(()=>toast(fkey(f)+' → '+SL[v]));return}
+      if(k==='status'){setStatus(f.id,v).then(()=>toast(fkey(f)+' → '+sl(v)));return}
       if(k==='title'&&!v){el.value=f.title;return}
       if(v===f[k]){editingNote=null;return}
       editingNote=null;
@@ -759,15 +969,15 @@ function bindPage(){
     col.addEventListener('dragleave',()=>col.classList.remove('over'));
     col.addEventListener('drop',e=>{e.preventDefault();col.classList.remove('over');const id=e.dataTransfer.getData('text/plain');const st=col.dataset.col;
       const f=S.features.find(x=>x.id===id); if(!f||f.status===st) return;
-      setStatus(id,st).then(()=>{ if(st==='parked'){openId=id;render();setTimeout(()=>$('noteIn')?.focus(),30)} else toast('Moved to '+SL[st]) })});
+      setStatus(id,st).then(()=>{ if(st==='parked'){openId=id;render();setTimeout(()=>$('noteIn')?.focus(),30)} else toast('Moved to '+sl(st)) })});
   });
 }
 
 function handoffPrompt(f){
   const p=proj(f.project), left=f.steps.filter(s=>!s.done);
   return [`Continue ${fkey(f)} "${f.title}" in ${p.path}.`,
-    `Status: ${SL[f.status]}.`,
-    f.note?`${f.status==='parked'?'Where we stopped':'Next step'}: ${f.note}`:'',
+    `Status: ${sl(f.status)}.`,
+    f.note?`${noteLabel(f)}: ${f.note}`:'',
     left.length?`Remaining steps:\n${left.map(s=>'- '+s.text).join('\n')}`:'',
     f.files.length?`Files touched so far: ${f.files.join(', ')}`:'',
     `Move the card to In progress now, tick steps as you finish them, and update the board before you stop.`].filter(Boolean).join('\n\n');
@@ -777,15 +987,15 @@ function handoffPrompt(f){
 function renderDrawer(){
   const f=S.features.find(x=>x.id===openId);
   if(!f){$('drawerRoot').innerHTML='';return}
-  const noteLabel=f.status==='parked'?'Where you stopped':f.status==='active'?'Next step':'Notes';
+  const noteLbl=noteLabel(f);
   const done=f.steps.filter(s=>s.done).length;
   $('drawerRoot').innerHTML=`<div class="scrim" id="scrim"></div>
   <aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(f.title)}">
     <div class="drawer-h"><div class="row"><span class="mono">${fkey(f)} · ${esc(proj(f.project).name)}</span><button class="btn sm ghost" id="dClose">Close</button></div>
       <input class="title-in" id="titleIn" value="${esc(f.title)}" aria-label="Feature title">${progBar(f)}</div>
     <div class="drawer-b">
-      <div class="field"><span class="lbl">Status</span><div class="seg">${STATUSES.map(s=>`<button data-st="${s.id}" aria-pressed="${f.status===s.id}"><span class="dot" style="background:${color(s.id)}"></span>${s.label}</button>`).join('')}</div></div>
-      <div class="field"><label class="lbl" for="noteIn">${noteLabel}</label><textarea id="noteIn" class="${f.status==='parked'?'stopnote':''}" placeholder="${f.status==='parked'?'What was left undone, and why you switched away':'Context for the next session'}">${esc(f.note)}</textarea></div>
+      <div class="field"><span class="lbl">Status</span><div class="seg">${STATUSES.map(s=>`<button data-st="${s.id}" aria-pressed="${f.status===s.id}"><span class="dot" style="background:${color(s.id)}"></span>${sl(s.id)}</button>`).join('')}</div></div>
+      <div class="field"><label class="lbl" for="noteIn">${noteLbl}</label><textarea id="noteIn" class="${f.status==='parked'?'stopnote':''}" placeholder="${f.status==='parked'?'What was left undone, and why you switched away':'Context for the next session'}">${esc(f.note)}</textarea></div>
       <div class="field"><span class="lbl"><span>Steps</span><span class="mono">${done}/${f.steps.length}</span></span>
         <ul class="checklist">${f.steps.map((s,i)=>`<li><label class="${s.done?'done':''}"><input type="checkbox" data-step="${i}" ${s.done?'checked':''}><span>${esc(s.text)}</span></label></li>`).join('')}</ul>
         <form class="addstep" id="stepForm"><input id="stepIn" placeholder="Add a step" aria-label="New step"><button class="btn sm">Add</button></form></div>

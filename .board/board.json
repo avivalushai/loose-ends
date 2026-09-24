@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "project": {
     "name": "Loose Ends",
     "key": "LE"
@@ -7,7 +7,7 @@
   "settings": {
     "granularity": "normal"
   },
-  "nextNum": 15,
+  "nextNum": 17,
   "features": [
     {
       "key": "LE-1",
@@ -557,6 +557,133 @@
           "text": "Created — review"
         }
       ]
+    },
+    {
+      "key": "LE-15",
+      "title": "Five tabs: features, questions, brainstorms, plans, references",
+      "type": "feature",
+      "status": "review",
+      "note": "Reinstall the plugin first (schema bumped to v2). Then: does the card/note line hold up, or does the board start filling on its own?",
+      "doneWhen": [
+        "The Questions tab reads like questions, not features",
+        "Nothing lands in Brainstorms or References that you wouldn't have scrolled back for"
+      ],
+      "steps": [
+        {
+          "text": "schemaVersion 2: question type, notes[], migration",
+          "done": true
+        },
+        {
+          "text": "CLI: board ask / answer / note",
+          "done": true
+        },
+        {
+          "text": "Server API routes for notes",
+          "done": true
+        },
+        {
+          "text": "UI: the five tabs",
+          "done": true
+        },
+        {
+          "text": "Skill rules, /ask command, SPEC and README",
+          "done": true
+        }
+      ],
+      "files": [
+        "cli/src/schema.ts",
+        "cli/src/notes.ts",
+        "ui/index.html",
+        "skills/loose-ends/SKILL.md"
+      ],
+      "createdAt": "2026-09-24T14:08:02Z",
+      "updatedAt": "2026-09-24T14:08:02Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T14:08:02Z",
+          "by": "claude",
+          "text": "Created — review"
+        },
+        {
+          "at": "2026-09-24T14:08:02Z",
+          "by": "claude",
+          "text": "Step done: schemaVersion 2: question type, notes[], migration"
+        },
+        {
+          "at": "2026-09-24T14:08:02Z",
+          "by": "claude",
+          "text": "Step done: CLI: board ask / answer / note"
+        },
+        {
+          "at": "2026-09-24T14:08:02Z",
+          "by": "claude",
+          "text": "Step done: Server API routes for notes"
+        },
+        {
+          "at": "2026-09-24T14:08:02Z",
+          "by": "claude",
+          "text": "Step done: UI: the five tabs"
+        },
+        {
+          "at": "2026-09-24T14:08:02Z",
+          "by": "claude",
+          "text": "Step done: Skill rules, /ask command, SPEC and README"
+        }
+      ]
+    },
+    {
+      "key": "LE-16",
+      "title": "Fix the three rules the Braille session broke",
+      "type": "feature",
+      "status": "review",
+      "note": "touch now needs the file to fit the card, --unfile removes mistakes, and the skill says when an open card is the wrong home. Check whether your next Braille session behaves",
+      "doneWhen": [],
+      "steps": [],
+      "files": [
+        "cli/src/features.ts"
+      ],
+      "createdAt": "2026-09-24T14:21:45Z",
+      "updatedAt": "2026-09-24T14:21:45Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T14:21:45Z",
+          "by": "claude",
+          "text": "Created — review"
+        }
+      ]
+    }
+  ],
+  "nextNoteNum": 3,
+  "notes": [
+    {
+      "id": "LE-N1",
+      "kind": "brainstorm",
+      "title": "Is the board more than features?",
+      "body": "Ideas, research and references evaporate in chat the same way parked work does. Decided: questions are cards (they have a next step and an end), brainstorms/plans/references are notes (they don't). Not a new product category — two collections behind five tabs.",
+      "url": "",
+      "file": "",
+      "cards": [
+        "LE-15"
+      ],
+      "createdAt": "2026-09-24T14:08:03Z",
+      "updatedAt": "2026-09-24T14:08:03Z",
+      "updatedBy": "claude"
+    },
+    {
+      "id": "LE-N2",
+      "kind": "plan",
+      "title": "Spec v0.1",
+      "body": "",
+      "url": "",
+      "file": "SPEC.md",
+      "cards": [
+        "LE-15"
+      ],
+      "createdAt": "2026-09-24T14:08:03Z",
+      "updatedAt": "2026-09-24T14:08:03Z",
+      "updatedBy": "claude"
     }
   ]
 }

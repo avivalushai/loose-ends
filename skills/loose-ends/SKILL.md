@@ -23,10 +23,27 @@ board park LE-3 --note "Where we stopped"      # a note is required
 board review LE-3 [--note "What to check"]
 board done LE-3
 board merge LE-15 --into LE-3
+
+board ask "Which auth provider?" [--status active]     # a question is a card
+board answer LE-7 "What you found out" [--done]
+
+board note add brainstorm|plan|reference "Title" [--body ...] [--url ...] [--file ...] [--card LE-3]...
+board note list [--kind plan] · note show LE-N3 · note update LE-N3 ... · note link LE-N3 LE-4 · note rm LE-N3
 ```
+
+The board has five tabs. Two hold cards: **Features** and **Questions**. Three
+hold notes: **Brainstorms**, **Plans**, **References**.
+
+The line between them is the only rule that matters: **a card is work with a
+next step; a note is something you'd otherwise scroll back through the chat to
+find.** Everything else is neither, and goes nowhere.
 
 Cards can be referred to as `LE-3` or just `3`. If there's no board yet, offer
 once to run `board init` — don't nag.
+
+Files attach themselves as you edit, but only to a card they plausibly belong
+to. When you know which card the work is for, say so: `board touch <file>
+--card LE-3`, or `board update LE-3 --file <file>`.
 
 ## What is a feature?
 
@@ -35,7 +52,8 @@ is a step inside a feature, or nothing.
 
 For each request:
 
-1. Related to an open card (same topic or same files)? → update that card.
+1. Related to an open card (same topic or same files)? → update that card —
+   unless it's the wrong home for it, below.
 2. Takes more than one reply, or touches several files? → new card.
 3. Otherwise → a step on the active card, or don't record it.
 
@@ -45,6 +63,45 @@ For each request:
 - Vague asks ("make it nicer") → name the card by the screens you actually changed.
 - Name cards in the user's language, as they see the app ("Save loops"), not in
   internals ("storage layer").
+
+**When an open card is the wrong home.** A broad card — "Traffic analytics",
+"The dashboard" — looks related to almost anything, and then swallows days of
+distinct work as note edits. The card never finishes, and the board stops
+moving even though it was technically updated. Before folding work into one:
+
+- Would it be a fair line in that card's *next step*? If describing it takes
+  more than a sentence, it's its own card.
+- Does it finish separately? Shipping a signature check and shipping a browser
+  snippet end on different days. Two cards.
+- Is the card in `review`? Then it's waiting to be checked, not worked on.
+  Move it back with `board update <key> --status active` before recording
+  anything, or open a new card. Notes on a review card claim something is
+  finished while you're still building it.
+
+A note edit changes nothing the user can see: same title, same progress, same
+row. If a whole session shows up only as notes on one card, the board failed.
+
+## Questions
+
+A question is a card when somebody has to go and find out — compare two
+libraries, check what a service costs, read a spec, ask another person. It has a
+next step and an end, which is what makes it work and not chatter.
+
+`board ask "Which auth provider — Clerk or Auth.js?"`
+
+A question you answer in the same reply was never a question; it was a sentence.
+Don't record it.
+
+Statuses read differently here, and the UI renames them: `idea` is **Open**,
+`active` is **Looking into**, `review` is **Answered**, `done` is **Decided**.
+That gap between answered and decided is deliberate — finding the answer and
+choosing what to do about it are two different moments, and the second one is
+the user's.
+
+`board answer LE-7 "Clerk — device codes are built in"` records what you found
+and moves the card to **Answered**. Never jump to `--done` on the user's behalf:
+you answered the question, you didn't make the decision. When they decide, close
+it — and if the decision creates work, add that card and say so in one line.
 
 ## Brainstorming
 
@@ -69,6 +126,33 @@ to add later, a wrong one costs trust in every row on the board.
 
 Never offer in the middle of work. Wait until the discussion is done.
 
+When they say yes and the discussion was long enough that the *reasoning* is
+worth keeping too, add one brainstorm note alongside the cards and link them:
+
+```
+board note add brainstorm "Should the board hold more than features?" \
+  --body "Ideas and references evaporate in chat too. Settled on: questions are cards, the rest are notes."
+board note link LE-N4 LE-12 LE-13
+```
+
+One note for the whole conversation, never one per idea. The body says what was
+**decided**, not what was said — if you can't write a decision, there wasn't
+one, and the note shouldn't exist.
+
+## References
+
+A reference is something the user looked up that they'll look up again: the doc
+page that answered a question, the spec you worked from, the example repo.
+
+`board note add reference "Clerk device-code flow" --url https://... --card LE-7`
+
+Add one when you *used* a source and the user would otherwise have to scroll
+back through the chat for it. Link it to the card it informed.
+
+Do not record: links you produced in passing, anything already in the repo's
+README, search results nobody opened, or a page you only skimmed. A references
+tab that fills up on its own is a bookmarks folder, and nobody reads those.
+
 ## Plans and specs
 
 A planning document is not a board, but it usually contains one. When the user
@@ -89,6 +173,10 @@ Rules that keep it useful:
 - Check `board list --all --json` first and skip what's already there, matching
   on meaning rather than exact titles. Plans get re-read; cards must not double.
 - Add each with `--file <the doc>` so the card points back at the reasoning.
+- Then record the document itself once, and link the cards it produced:
+  `board note add plan "Loop library spec" --file docs/plan.md --card LE-4 --card LE-5`
+  Re-reading the same plan later, `board note list --kind plan` tells you it's
+  already been through the board, which is how you avoid adding it twice.
 - Never edit the document to match the board. The doc holds the thinking; the
   board holds the state.
 
@@ -126,6 +214,10 @@ Never move a card to `done` on a guess. Review is where uncertainty goes.
 End every reply where the board changed with exactly one line:
 
 `Board: LE-3 Save loops → in progress · new idea: LE-15 Bigger buttons on mobile`
+
+Notes and questions go in the same one line, never a second one:
+
+`Board: LE-7 answered — Clerk · reference LE-N4 Clerk device-code flow`
 
 Nothing else about the board in your reply — no summaries, no bullet lists of
 what you recorded. If the user corrects you ("that's part of saving"), fix it

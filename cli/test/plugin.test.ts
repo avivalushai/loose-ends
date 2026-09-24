@@ -86,10 +86,24 @@ describe("skill and commands", () => {
     expect(body).toContain("don't ask again this session");
   });
 
+  it("draws the line between a card and a note, so the board can't fill up on its own", () => {
+    const body = read("skills/loose-ends/SKILL.md");
+    expect(body).toContain("a card is work with a\nnext step");
+    expect(body).toContain("scroll back through the chat to\nfind");
+    // questions stop at answered; deciding is the user's move
+    expect(body).toContain("board ask");
+    expect(body).toContain("board answer");
+    expect(body).toContain("you answered the question, you didn't make the decision");
+    // and the three note kinds each say what does NOT belong
+    expect(body).toContain("was never a question; it was a sentence");
+    expect(body).toContain("One note for the whole conversation, never one per idea");
+    expect(body).toContain("Do not record: links you produced in passing");
+  });
+
   it("gives every command a description and only refers to real board commands", () => {
     const files = fs.readdirSync(path.join(repo, "commands"));
-    expect(files.sort()).toEqual(["board.md", "done.md", "park.md", "plan.md"]);
-    const known = /board (ui|init|context|list|show|add|update|step|park|review|done|merge|touch)\b/g;
+    expect(files.sort()).toEqual(["ask.md", "board.md", "done.md", "park.md", "plan.md"]);
+    const known = /board (ui|init|context|list|show|add|update|step|park|review|done|merge|touch|ask|answer|note)\b/g;
     for (const f of files) {
       const text = read(`commands/${f}`);
       const fm = frontmatter(text);

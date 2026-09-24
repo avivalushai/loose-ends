@@ -2,6 +2,10 @@
 
 A feature board Claude keeps for you while you build — per project, updated automatically, with everything you left halfway front and center.
 
+Five tabs over one board file: **Features** and **Questions** are cards (work
+with a next step), **Brainstorms**, **Plans** and **References** are notes
+(things you'd otherwise scroll back through the chat to find).
+
 - `SPEC.md` — product + technical spec
 - `CLAUDE.md` — rules for Claude Code in this repo
 - `FIRST_PROMPT.md` — what to paste into Claude Code to start
@@ -33,7 +37,7 @@ In Claude Code:
 /plugin install loose-ends@loose-ends
 ```
 
-Then `/loose-ends:board`, `/loose-ends:park`, `/loose-ends:done`.
+Then `/loose-ends:board`, `/loose-ends:park`, `/loose-ends:done`, `/loose-ends:ask`, `/loose-ends:plan`.
 
 ## Working on the skill or the hooks
 

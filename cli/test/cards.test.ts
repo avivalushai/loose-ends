@@ -258,3 +258,21 @@ describe("board delete", () => {
     expect(sb.board("delete", "APP-1").err).toContain("no card APP-1");
   });
 });
+
+describe("detaching files", () => {
+  it("removes files that landed on the wrong card", () => {
+    const sb = withBoard();
+    sb.board("add", "Insights", "--status", "active", "--file", "lib/home/insights.ts", "--file", "lib/traffic/signature.ts");
+    const f = sb.json("update", "APP-1", "--unfile", "lib/traffic/signature.ts");
+    expect(f.files).toEqual(["lib/home/insights.ts"]);
+    expect(f.log.at(-1).text).toBe("Removed files: lib/traffic/signature.ts");
+  });
+
+  it("ignores files that weren't attached, and counts as a change on its own", () => {
+    const sb = withBoard();
+    sb.board("add", "Insights", "--file", "a.ts");
+    expect(sb.json("update", "APP-1", "--unfile", "never-there.ts").files).toEqual(["a.ts"]);
+    expect(sb.board("update", "APP-1", "--unfile", "a.ts").code).toBe(0);
+    expect(sb.read().features[0].files).toEqual([]);
+  });
+});

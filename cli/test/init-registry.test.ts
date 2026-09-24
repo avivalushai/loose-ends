@@ -11,11 +11,13 @@ describe("board init", () => {
     expect(r.code).toBe(0);
     expect(r.out).toContain("Created board Looper (LOOP)");
     expect(sb.read()).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       project: { name: "Looper", key: "LOOP" },
       settings: { granularity: "normal" },
       nextNum: 1,
+      nextNoteNum: 1,
       features: [],
+      notes: [],
     });
     expect(fs.readFileSync(path.join(sb.root, ".board/.gitignore"), "utf8")).toContain("*.lock");
     expect(sb.registry()).toEqual([{ path: sb.root, name: "Looper", key: "LOOP", addedAt: "2026-09-20T10:00:00Z" }]);

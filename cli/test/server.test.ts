@@ -272,3 +272,49 @@ describe("adopting a project from the UI", () => {
     expect((await post("/api/projects", {})).status).toBe(400);
   });
 });
+
+describe("notes over the API", () => {
+  it("creates, patches and deletes a note through the CLI", async () => {
+    const sb = seeded();
+    const { call, post, id } = await serve(sb);
+
+    const made = await post(`/api/projects/${id}/notes`, {
+      kind: "reference",
+      title: "Clerk docs",
+      url: "https://clerk.com/docs",
+      cards: ["APP-1"],
+    });
+    expect(made.status).toBe(201);
+    expect(made.body).toMatchObject({ id: "APP-N1", kind: "reference", url: "https://clerk.com/docs", cards: ["APP-1"] });
+    expect(made.body.updatedBy).toBe("user"); // a browser edit is the user typing
+
+    const patched = await post(`/api/projects/${id}/notes/APP-N1`, { title: "Clerk device codes" }, "PATCH");
+    expect(patched.body.title).toBe("Clerk device codes");
+    expect(patched.body.url).toBe("https://clerk.com/docs");
+
+    const board = await call(`/api/projects/${id}/board`);
+    expect(board.body.notes).toHaveLength(1);
+
+    expect((await post(`/api/projects/${id}/notes/APP-N1`, {}, "DELETE")).status).toBe(200);
+    expect((await call(`/api/projects/${id}/board`)).body.notes).toEqual([]);
+  });
+
+  it("refuses a bad kind, an unknown note and the wrong method", async () => {
+    const sb = seeded();
+    const { call, post, id } = await serve(sb);
+    expect((await post(`/api/projects/${id}/notes`, { kind: "recipe", title: "Nope" })).status).toBe(400);
+    expect((await post(`/api/projects/${id}/notes/APP-N9`, { title: "x" }, "PATCH")).status).toBe(404);
+    expect((await call(`/api/projects/${id}/notes`)).status).toBe(405);
+  });
+
+  it("adds a question card with its type intact", async () => {
+    const sb = seeded();
+    const { post, id } = await serve(sb);
+    const { body } = await post(`/api/projects/${id}/features`, {
+      title: "Which auth provider?",
+      type: "question",
+      status: "idea",
+    });
+    expect(body).toMatchObject({ type: "question", status: "idea" });
+  });
+});

@@ -9,7 +9,8 @@ import { SCHEMA_VERSION } from "./schema.js";
 export type Migration = (board: Record<string, unknown>) => Record<string, unknown>;
 
 export const MIGRATIONS: Record<number, Migration> = {
-  // v1 is the first released schema; nothing to migrate yet.
+  // v1 → v2: brainstorms, plans and references live beside the cards.
+  1: (board) => ({ ...board, nextNoteNum: 1, notes: [] }),
 };
 
 export class MigrationError extends Error {}

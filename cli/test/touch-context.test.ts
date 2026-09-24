@@ -111,3 +111,40 @@ describe("board context", () => {
     expect(c.active[0].title).toBe("Save loops");
   });
 });
+
+describe("touch only attaches files that belong", () => {
+  const twoAreas = () => {
+    const sb = withBoard();
+    sb.board("add", "Insights on the home page", "--status", "active", "--file", "lib/home/insights.ts");
+    return sb;
+  };
+
+  it("takes files from the card's own area", () => {
+    const sb = twoAreas();
+    expect(sb.board("touch", "lib/home/widget.tsx").out).toBe("APP-1 + lib/home/widget.tsx");
+    expect(sb.read().features[0].files).toEqual(["lib/home/insights.ts", "lib/home/widget.tsx"]);
+  });
+
+  it("refuses files from somewhere else, even when it's the only active card", () => {
+    const sb = twoAreas();
+    // the real failure: traffic work glued to a card about the home page
+    const r = sb.board("touch", "lib/traffic/identify/signature.ts", "public/traffic.js");
+    expect([r.code, r.out]).toEqual([0, ""]);
+    expect(sb.json("touch", "lib/traffic/identify/signature.ts")).toMatchObject({ card: null, reason: "no card these files belong to" });
+    expect(sb.read().features[0].files).toEqual(["lib/home/insights.ts"]);
+  });
+
+  it("lets a card with no files yet adopt its first ones", () => {
+    const sb = withBoard();
+    sb.board("add", "Traffic capture", "--status", "active");
+    expect(sb.board("touch", "lib/traffic/identify/signature.ts").out).toContain("APP-1 +");
+  });
+
+  it("attaches anywhere when the caller names the card", () => {
+    const sb = twoAreas();
+    sb.board("add", "Traffic capture", "--status", "idea");
+    expect(sb.board("touch", "--card", "APP-2", "lib/traffic/signature.ts").out).toBe("APP-2 + lib/traffic/signature.ts");
+    expect(sb.read().features[1].files).toEqual(["lib/traffic/signature.ts"]);
+    expect(sb.board("touch", "--card", "APP-9", "x.ts").err).toContain("no card APP-9");
+  });
+});

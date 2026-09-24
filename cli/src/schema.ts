@@ -1,14 +1,16 @@
 // board.json schema (SPEC §3) and a dependency-free validator.
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const STATUSES = ["idea", "active", "parked", "review", "done"] as const;
-export const TYPES = ["feature", "bug", "chore"] as const;
+export const TYPES = ["feature", "bug", "chore", "question"] as const;
+export const NOTE_KINDS = ["brainstorm", "plan", "reference"] as const;
 export const ACTORS = ["claude", "user"] as const;
 export const GRANULARITIES = ["coarse", "normal", "fine"] as const;
 
 export type Status = (typeof STATUSES)[number];
 export type FeatureType = (typeof TYPES)[number];
+export type NoteKind = (typeof NOTE_KINDS)[number];
 export type Actor = (typeof ACTORS)[number];
 export type Granularity = (typeof GRANULARITIES)[number];
 
@@ -38,15 +40,36 @@ export interface Feature {
   log: LogEntry[];
 }
 
+/**
+ * The three tabs that aren't work: a brainstorm is a thinking session, a plan
+ * is a document, a reference is a link. None of them has a status, because
+ * none of them has a next step — that's what makes them notes and not cards.
+ */
+export interface Note {
+  id: string;
+  kind: NoteKind;
+  title: string;
+  body: string;
+  url: string;
+  file: string;
+  cards: string[]; // card keys this note produced or is about
+  createdAt: string;
+  updatedAt: string;
+  updatedBy: Actor;
+}
+
 export interface Board {
   schemaVersion: number;
   project: { name: string; key: string };
   settings: { granularity: Granularity };
   nextNum: number;
+  nextNoteNum: number;
   features: Feature[];
+  notes: Note[];
 }
 
 export const KEY_RE = /^[A-Z][A-Z0-9]{1,5}$/;
+export const NOTE_ID_RE = /^([A-Z][A-Z0-9]*)-N(\d+)$/;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -74,7 +97,8 @@ export function validateBoard(b: unknown): string[] {
   else if (!oneOf(GRANULARITIES, b.settings.granularity))
     err("settings.granularity", `must be one of ${GRANULARITIES.join(", ")}`);
 
-  if (!Number.isInteger(b.nextNum) || (b.nextNum as number) < 1) err("nextNum", "must be a positive integer");
+  for (const k of ["nextNum", "nextNoteNum"] as const)
+    if (!Number.isInteger(b[k]) || (b[k] as number) < 1) err(k, "must be a positive integer");
 
   if (!Array.isArray(b.features)) {
     err("features", "must be an array");
@@ -123,6 +147,37 @@ export function validateBoard(b: unknown): string[] {
       });
   });
 
+  if (!Array.isArray(b.notes)) {
+    err("notes", "must be an array");
+    return errs;
+  }
+
+  const seenNotes = new Set<string>();
+  b.notes.forEach((n, i) => {
+    const p = `notes[${i}]`;
+    if (!isObj(n)) return err(p, "must be an object");
+
+    const m = isStr(n.id) ? NOTE_ID_RE.exec(n.id) : null;
+    if (!m) err(`${p}.id`, "must look like KEY-N12");
+    else {
+      if (projectKey && m[1] !== projectKey) err(`${p}.id`, `prefix must be ${projectKey}`);
+      if (Number.isInteger(b.nextNoteNum) && Number(m[2]) >= (b.nextNoteNum as number))
+        err(`${p}.id`, "number must be below nextNoteNum");
+      if (seenNotes.has(n.id as string)) err(`${p}.id`, `duplicate id ${n.id}`);
+      seenNotes.add(n.id as string);
+    }
+
+    if (!oneOf(NOTE_KINDS, n.kind)) err(`${p}.kind`, `must be one of ${NOTE_KINDS.join(", ")}`);
+    if (!isStr(n.title) || !n.title.trim()) err(`${p}.title`, "must be a non-empty string");
+    for (const k of ["body", "url", "file"] as const) if (!isStr(n[k])) err(`${p}.${k}`, "must be a string");
+    if (!Array.isArray(n.cards) || !n.cards.every(isStr)) err(`${p}.cards`, "must be an array of card keys");
+    else for (const key of n.cards as string[]) if (!seen.has(key)) err(`${p}.cards`, `no card ${key} on this board`);
+
+    for (const k of ["createdAt", "updatedAt"] as const)
+      if (!isStr(n[k]) || !ISO_RE.test(n[k] as string)) err(`${p}.${k}`, "must be an ISO-8601 UTC timestamp");
+    if (!oneOf(ACTORS, n.updatedBy)) err(`${p}.updatedBy`, `must be one of ${ACTORS.join(", ")}`);
+  });
+
   return errs;
 }
 
@@ -132,6 +187,8 @@ export function emptyBoard(name: string, key: string): Board {
     project: { name, key },
     settings: { granularity: "normal" },
     nextNum: 1,
+    nextNoteNum: 1,
     features: [],
+    notes: [],
   };
 }

@@ -3,7 +3,7 @@
 
 import { run } from "../../cli/src/cli.js";
 import type { Ctx } from "../../cli/src/context.js";
-import type { Feature, Step } from "../../cli/src/schema.js";
+import type { Feature, Note, Step } from "../../cli/src/schema.js";
 import { discoverProjects, isKnownProject } from "./discover.js";
 import { type Project, findProject, listProjects, loadBoard, summarize } from "./projects.js";
 
@@ -34,6 +34,12 @@ const feature = (project: Project, key: string): Feature => {
   const f = loadBoard(project).features.find((x) => x.key === key);
   if (!f) throw new HttpError(404, `no card ${key}`);
   return f;
+};
+
+const note = (project: Project, id: string): Note => {
+  const n = loadBoard(project).notes.find((x) => x.id === id);
+  if (!n) throw new HttpError(404, `no note ${id}`);
+  return n;
 };
 
 function project(ctx: Ctx, id: string): Project {
@@ -120,6 +126,34 @@ export function handleApi(ctx: Ctx, req: ApiRequest): unknown | undefined {
   if (seg.length === 3 && seg[2] === "board") {
     if (method !== "GET") throw new HttpError(405, "use GET");
     return loadBoard(p);
+  }
+
+  // POST /api/projects/:id/notes · PATCH|DELETE /api/projects/:id/notes/:id
+  if (seg[2] === "notes") {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const fields = [["--title", "title"], ["--body", "body"], ["--url", "url"], ["--file", "file"]] as const;
+
+    if (seg.length === 3) {
+      if (method !== "POST") throw new HttpError(405, "use POST");
+      const argv = ["note", "add", str(b.kind, "kind"), str(b.title, "title")];
+      for (const [flag, key] of fields)
+        if (key !== "title" && b[key] !== undefined && b[key] !== "") argv.push(flag, str(b[key], key));
+      for (const c of (b.cards as string[]) ?? []) argv.push("--card", str(c, "card key"));
+      return board<Note>(ctx, p, argv);
+    }
+
+    if (seg.length === 4) {
+      const id = seg[3]!.toUpperCase();
+      note(p, id); // 404 before any write
+      if (method === "DELETE") return board<Note>(ctx, p, ["note", "rm", id]);
+      if (method !== "PATCH") throw new HttpError(405, "use PATCH or DELETE");
+
+      const argv = ["note", "update", id];
+      if (b.kind !== undefined && b.kind !== "") argv.push("--kind", str(b.kind, "kind"));
+      for (const [flag, key] of fields) if (b[key] !== undefined) argv.push(flag, str(b[key], key));
+      for (const c of (b.cards as string[]) ?? []) argv.push("--card", str(c, "card key"));
+      return argv.length > 3 ? board<Note>(ctx, p, argv) : note(p, id);
+    }
   }
 
   if (seg[2] !== "features") throw new HttpError(404, `no route ${path}`);

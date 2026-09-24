@@ -47,12 +47,19 @@ Claude Code session
 
 ## 3. Data model — `<repo>/.board/board.json`
 
+The board has five tabs over two collections. `features` holds the cards —
+work with a status and a next step, whether that work is building something
+(**Features**) or finding something out (**Questions**). `notes` holds the three
+things that have no next step and so can't be cards: the **Brainstorm** that
+produced them, the **Plan** they came from, the **Reference** that answered them.
+
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "project": { "name": "Looper", "key": "LOOP" },
   "settings": { "granularity": "normal" },
   "nextNum": 15,
+  "nextNoteNum": 4,
   "features": [
     {
       "key": "LOOP-3",
@@ -68,15 +75,41 @@ Claude Code session
       "updatedBy": "claude",
       "log": [{ "at": "2026-09-20T14:12:00Z", "by": "claude", "text": "Parked — switched to playback drift" }]
     }
+  ],
+  "notes": [
+    {
+      "id": "LOOP-N3",
+      "kind": "reference",
+      "title": "Clerk device-code flow",
+      "body": "",
+      "url": "https://clerk.com/docs/references/backend/device",
+      "file": "",
+      "cards": ["LOOP-7"],
+      "createdAt": "2026-09-21T09:00:00Z",
+      "updatedAt": "2026-09-21T09:00:00Z",
+      "updatedBy": "claude"
+    }
   ]
 }
 ```
 
 - `status`: `idea | active | parked | review | done`
-- `type`: `feature | bug | chore`
+- `type`: `feature | bug | chore | question`
 - `note`: meaning depends on status — *Next step* (active), *Where we stopped* (parked), *What to check* (review)
 - `updatedBy`: `claude | user`
 - `settings.granularity`: `coarse | normal | fine`
+
+**Questions** are cards of `type: question`. They run the same five statuses,
+but the UI renames them: Open · Looking into · Parked · Answered · Decided. The
+gap between Answered and Decided is the point — Claude finds the answer, the
+user makes the call.
+
+**Notes** are `{ id, kind, title, body, url, file, cards[], createdAt, updatedAt, updatedBy }`.
+- `id`: `LOOP-N3` — a separate counter (`nextNoteNum`) so notes never take a card's number
+- `kind`: `brainstorm | plan | reference`
+- `body` carries a brainstorm's decisions, `file` a plan's document, `url` a reference's link
+- `cards` are the card keys the note produced or informed; the validator rejects a key that isn't on the board, so links can't dangle
+- No status, no steps, no progress: a note has no next step, which is exactly what keeps it off the work tabs
 - Every schema change bumps `schemaVersion`; the CLI migrates old files automatically.
 
 Registry `~/.loose-ends/projects.json`: `[{ "path": "/Users/x/code/looper", "name": "Looper", "key": "LOOP", "addedAt": "..." }]`
@@ -98,6 +131,13 @@ board park LOOP-3 --note "Where we stopped"
 board review LOOP-3 [--note "What to check"]
 board done LOOP-3
 board merge LOOP-15 --into LOOP-3
+
+board ask "Which auth provider?" [--status active] [--note "..."]
+board answer LOOP-7 "What you found out" [--done]
+
+board note add brainstorm|plan|reference "Title" [--body ...] [--url ...] [--file ...] [--card LOOP-3]...
+board note list [--kind plan] | note show LOOP-N3 | note update LOOP-N3 ... | note link LOOP-N3 LOOP-4 | note rm LOOP-N3
+
 board touch <file>...            # attach files to the active card (used by hooks)
 board context                    # compact summary for SessionStart (open + parked + review)
 board ui [--port 4747]
@@ -113,7 +153,7 @@ Output is short and human-readable by default; `--json` for machines.
 ### Hooks (automatic)
 | Event | Action |
 |---|---|
-| SessionStart | Run `board context`; inject open/parked/review cards so Claude knows the state. If no board: offer to create one (and seed from git history). |
+| SessionStart | Run `board context`; inject open/parked/review cards, open questions and note counts so Claude knows the state. If no board: offer to create one (and seed from git history). |
 | PostToolUse (Edit/Write) | `board touch <file>` — record files on the active card. |
 | Stop | If code changed this turn and the board wasn't updated → ask Claude to update it before finishing (block once, never loop). |
 
@@ -153,6 +193,7 @@ If the user corrects ("that's part of saving"), merge/fix silently.
 ## 6. UI
 
 Start from `prototype/loose-ends.html` (working prototype with sample data). Keep:
+- Five tabs above the summary: Features · Questions · Brainstorms · Plans · References, each with a count
 - Left menu: all projects, parked count, progress
 - Views: Table (editable cells, add row, group/density/columns), Board (drag between columns), Timeline (idle time for parked)
 - Card drawer: status, note, steps, files, activity, "Continue with Claude" prompt
@@ -164,6 +205,8 @@ GET  /api/projects                  → registry + summary counts
 GET  /api/projects/:id/board        → board.json
 POST /api/projects/:id/features     → add
 PATCH /api/projects/:id/features/:key
+POST /api/projects/:id/notes        → add a note
+PATCH|DELETE /api/projects/:id/notes/:id
 GET  /api/events                    → SSE: board changed
 ```
 Hosted UI → localhost needs CORS + Private Network Access headers; keep the bundled UI as fallback (Safari).
@@ -224,6 +267,8 @@ The prototype (`prototype/loose-ends.html`) is the reference; this section descr
 **Layout** — Left sidebar 232px, dark navy `#0B1220`: logo; "All projects" with parked-count pill; project list (colored 2-letter key badge, parked pill, thin progress bar); "+" to add a project (name + folder). Below 760px it collapses to icons with a dot for projects with parked work. Main: `#EDF1F7` with a faint 24px blueprint grid, white surfaces, accent `#2F5BFF`. Fonts: Bricolage Grotesque / IBM Plex Sans / IBM Plex Mono. Light + dark mode.
 
 **Header** — Project: key badge + path, name, search, "board.json" (raw file), "+ New feature". All projects: "All features" + "N loose ends across M projects". Summary strip (% complete, stacked status bar, counts). Status chips with counts. View bar: Table | Board | Timeline + Group by (Status/Project/Nothing), Density, Columns menu, Hide done (remembered per browser).
+
+**Tabs** — Features and Questions are the card tabs and share the Table / Board / Timeline views; the Questions tab shows only `type: question` cards and relabels the statuses. Brainstorms, Plans and References each show a plainer table (Id · Project · Title · body/document/link · Cards · Updated · Last by · delete) with an add-row at the top and no status, progress or grouping. A card chip in the Cards column jumps to that card and opens it.
 
 **Table** (default) — Key (opens card) · Project (All view) · Feature · Status · Next step / where stopped · Progress · Steps · Files · Updated · Last by. Cell borders, sortable headers, group rows with count + avg progress. Title/status/note edited in place (save on blur/Enter); status → Parked with empty note focuses the note. Parked rows: amber left stripe; Done: struck title. Persistent add-row at top (project, title, status, next step; Enter adds and keeps focus). Double-click row opens card.
 

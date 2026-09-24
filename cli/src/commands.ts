@@ -7,6 +7,7 @@ import { type Ctx, UserError, actor, nowIso } from "./context.js";
 import {
   activeFeature,
   ageDays,
+  fileFits,
   findFeature,
   formatDetail,
   formatLine,
@@ -21,12 +22,16 @@ import {
   type Board,
   type Feature,
   KEY_RE,
+  type Note,
+  NOTE_KINDS,
+  type NoteKind,
   type Status,
   STATUSES,
   type FeatureType,
   TYPES,
   emptyBoard,
 } from "./schema.js";
+import { findNote, formatNoteDetail, formatNoteLine, sortNotes, stampNote } from "./notes.js";
 import { BOARD_DIR, boardFileFor, findBoard, mutateBoard, readBoard, requireBoard, writeBoard } from "./store.js";
 
 export type Opts = Record<string, string | boolean | string[] | undefined>;
@@ -139,13 +144,28 @@ export function context(ctx: Ctx, { opts }: Args) {
     return emit(ctx, opts, { board: null }, "Loose Ends: no board in this project yet. Offer to create one with `board init`.");
   }
   const b = readBoard(loc.file);
-  const by = (s: Status) => sortFeatures(b.features.filter((f) => f.status === s));
+  // Questions get their own section, so they don't show up twice.
+  const work = b.features.filter((f) => f.type !== "question");
+  const questions = sortFeatures(b.features.filter((f) => f.type === "question" && f.status !== "done"));
+  const by = (s: Status) => sortFeatures(work.filter((f) => f.status === s));
   const counts = Object.fromEntries(STATUSES.map((s) => [s, b.features.filter((f) => f.status === s).length]));
+  const noteCounts = Object.fromEntries(NOTE_KINDS.map((k) => [k, b.notes.filter((n) => n.kind === k).length]));
 
   if (opts.json)
     return ctx.out(
       JSON.stringify(
-        { project: b.project, root: loc.root, counts, active: by("active"), parked: by("parked"), review: by("review"), ideas: by("idea") },
+        {
+          project: b.project,
+          root: loc.root,
+          counts,
+          noteCounts,
+          active: by("active"),
+          parked: by("parked"),
+          review: by("review"),
+          ideas: by("idea"),
+          questions,
+          notes: sortNotes(b.notes),
+        },
         null,
         2,
       ),
@@ -176,6 +196,13 @@ export function context(ctx: Ctx, { opts }: Args) {
     const shown = ideas.slice(0, 10).map((f) => `${f.key} ${f.title}`);
     lines.push(`Ideas: ${shown.join(" · ")}${ideas.length > 10 ? ` · +${ideas.length - 10} more` : ""}`);
   }
+  if (questions.length) {
+    lines.push("Open questions:");
+    for (const q of questions)
+      lines.push(`  ${q.key} ${q.title}${q.status === "review" && q.note ? ` — answered: ${q.note}` : ""}`);
+  }
+  const notes = NOTE_KINDS.filter((k) => noteCounts[k]).map((k) => `${noteCounts[k]} ${k}${noteCounts[k] === 1 ? "" : "s"}`);
+  if (notes.length) lines.push(`Notes: ${notes.join(" · ")} — \`board note list\``);
   ctx.out(lines.join("\n"));
 }
 
@@ -223,7 +250,7 @@ export function update(ctx: Ctx, { pos, opts }: Args) {
   const note = str(opts, "note") ?? str(opts, "next");
   const doneWhen = list(opts, "done-when");
   if (title === "") throw new UserError("title can't be empty");
-  if (!status && !type && title === undefined && note === undefined && !doneWhen.length && !list(opts, "file").length)
+  if (!status && !type && title === undefined && note === undefined && !doneWhen.length && !list(opts, "file").length && !list(opts, "unfile").length)
     throw new UserError("nothing to update (use --title, --note, --status, --type or --done-when)");
 
   const f = mutateBoard(requireBoard(ctx), (b) => {
@@ -241,10 +268,17 @@ export function update(ctx: Ctx, { pos, opts }: Args) {
       f.doneWhen = doneWhen;
       logs.push("Updated done-when");
     }
-    const added = projectFiles(requireBoard(ctx).root, ctx.cwd, list(opts, "file")).filter((x) => !f.files.includes(x));
+    const root = requireBoard(ctx).root;
+    const added = projectFiles(root, ctx.cwd, list(opts, "file")).filter((x) => !f.files.includes(x));
     if (added.length) {
       f.files.push(...added);
       logs.push(`Files: ${added.join(", ")}`);
+    }
+    // Files land on cards automatically, so they sometimes land on the wrong one.
+    const dropped = projectFiles(root, ctx.cwd, list(opts, "unfile")).filter((x) => f.files.includes(x));
+    if (dropped.length) {
+      f.files = f.files.filter((x) => !dropped.includes(x));
+      logs.push(`Removed files: ${dropped.join(", ")}`);
     }
     if (status && status !== f.status) {
       setStatus(ctx, f, status, by, note);
@@ -357,17 +391,23 @@ export function touch(ctx: Ctx, { pos, opts }: Args) {
   const rels = projectFiles(loc.root, ctx.cwd, pos);
   if (!rels.length) return nothing("no files inside the project");
 
-  const probe = activeFeature(readBoard(loc.file));
-  if (!probe || rels.every((r) => probe.files.includes(r))) return nothing(probe ? "already attached" : "no active card");
+  const target = str(opts, "card");
+  const board = readBoard(loc.file);
+  const probe = target ? findFeature(board, target) : activeFeature(board);
+  if (!probe) return nothing("no active card");
+  // Named explicitly, the caller knows which card this is; otherwise the file has to fit.
+  const wanted = (f: Feature, r: string) => !f.files.includes(r) && (!!target || fileFits(f, r));
+  if (!rels.some((r) => wanted(probe, r)))
+    return nothing(rels.every((r) => probe.files.includes(r)) ? "already attached" : "no card these files belong to");
 
   const by = actor(ctx, str(opts, "by"));
   const res = mutateBoard(loc, (b) => {
-    const f = activeFeature(b);
+    const f = target ? findFeature(b, target) : activeFeature(b);
     if (!f) return null;
-    const added = rels.filter((r) => !f.files.includes(r));
-    f.files.push(...new Set(added));
+    const added = [...new Set(rels.filter((r) => wanted(f, r)))];
+    f.files.push(...added);
     if (added.length) stamp(ctx, f, by);
-    return { f, added: [...new Set(added)] };
+    return { f, added };
   });
   if (!res || !res.added.length) return nothing("already attached");
   emit(ctx, opts, { card: res.f.key, added: res.added }, `${res.f.key} + ${res.added.join(", ")}`);
@@ -410,6 +450,166 @@ function openBrowser(url: string): void {
   } catch {
     /* no browser is fine — the URL is printed above */
   }
+}
+
+// --- questions -------------------------------------------------------------
+
+/** A question is a card: it has a next step (find out) and an end (decided). */
+export function ask(ctx: Ctx, { pos, opts }: Args) {
+  add(ctx, { pos, opts: { ...opts, type: "question" } });
+}
+
+/** Record the answer and move the question to review — answered, not yet decided. */
+export function answer(ctx: Ctx, { pos, opts }: Args) {
+  const keyArg = need(pos, 0, "question key");
+  const text = (pos[1] ?? str(opts, "note") ?? "").trim();
+  if (!text) throw new UserError(`missing the answer (board answer LE-7 "what you found out")`);
+  const by = actor(ctx, str(opts, "by"));
+
+  const f = mutateBoard(requireBoard(ctx), (b) => {
+    const f = findFeature(b, keyArg);
+    if (f.type !== "question")
+      throw new UserError(`${f.key} is a ${f.type}, not a question — use \`board update ${f.key} --note\``);
+    setStatus(ctx, f, opts.done ? "done" : "review", by, text);
+    return f;
+  });
+  emit(ctx, opts, f, `${f.key} ${f.status === "done" ? "answered and closed" : "answered — decide when you're ready"}`);
+}
+
+// --- notes: brainstorms, plans, references ---------------------------------
+
+function parseKind(v: string | undefined): NoteKind {
+  if (v === undefined) throw new UserError(`missing kind — one of ${NOTE_KINDS.join(", ")}`);
+  const k = v.toLowerCase().replace(/s$/, "");
+  if (!(NOTE_KINDS as readonly string[]).includes(k)) throw new UserError(`kind must be one of ${NOTE_KINDS.join(", ")}`);
+  return k as NoteKind;
+}
+
+/** Card keys a note points at, checked against the board so links can't dangle. */
+function noteCards(b: Board, keys: string[]): string[] {
+  return [...new Set(keys.map((k) => findFeature(b, k).key))];
+}
+
+function noteFile(ctx: Ctx, root: string, v: string | undefined): string | undefined {
+  if (v === undefined) return undefined;
+  if (!v) return "";
+  const [rel] = projectFiles(root, ctx.cwd, [v]);
+  if (!rel) throw new UserError(`${v} is outside this project`);
+  return rel;
+}
+
+export function note(ctx: Ctx, { pos, opts }: Args) {
+  const sub = (pos[0] ?? "list").toLowerCase();
+  const rest = pos.slice(1);
+  const subs: Record<string, (ctx: Ctx, pos: string[], opts: Opts) => void> = {
+    add: noteAdd,
+    list: noteList,
+    ls: noteList,
+    show: noteShow,
+    update: noteUpdate,
+    edit: noteUpdate,
+    link: noteLink,
+    rm: noteRemove,
+    delete: noteRemove,
+  };
+  const fn = subs[sub];
+  if (!fn) throw new UserError(`unknown: board note ${sub} — use add, list, show, update, link or rm`);
+  fn(ctx, rest, opts);
+}
+
+function noteAdd(ctx: Ctx, pos: string[], opts: Opts) {
+  const kind = parseKind(pos[0]);
+  const title = need(pos, 1, `title (e.g. board note add reference "The CRDT paper" --url ...)`).trim();
+  if (!title) throw new UserError("title can't be empty");
+  const by = actor(ctx, str(opts, "by"));
+  const loc = requireBoard(ctx);
+
+  const n = mutateBoard(loc, (b) => {
+    const at = nowIso(ctx);
+    const n: Note = {
+      id: `${b.project.key}-N${b.nextNoteNum}`,
+      kind,
+      title,
+      body: str(opts, "body") ?? "",
+      url: str(opts, "url") ?? "",
+      file: noteFile(ctx, loc.root, str(opts, "file")) ?? "",
+      cards: noteCards(b, list(opts, "card")),
+      createdAt: at,
+      updatedAt: at,
+      updatedBy: by,
+    };
+    b.nextNoteNum++;
+    b.notes.push(n);
+    return n;
+  });
+  emit(ctx, opts, n, `Added ${n.id} ${n.title} (${n.kind})`);
+}
+
+function noteList(ctx: Ctx, _pos: string[], opts: Opts) {
+  const b = readBoard(requireBoard(ctx).file);
+  const kind = str(opts, "kind") ? parseKind(str(opts, "kind")) : undefined;
+  const ns = sortNotes(kind ? b.notes.filter((n) => n.kind === kind) : b.notes);
+  const w = Math.max(0, ...ns.map((n) => n.id.length));
+  emit(ctx, opts, ns, ns.length ? ns.map((n) => formatNoteLine(n, w)) : ["No notes."]);
+}
+
+function noteShow(ctx: Ctx, pos: string[], opts: Opts) {
+  const b = readBoard(requireBoard(ctx).file);
+  const n = findNote(b, need(pos, 0, "note id (e.g. LOOP-N3)"));
+  emit(ctx, opts, n, formatNoteDetail(ctx, n));
+}
+
+function noteUpdate(ctx: Ctx, pos: string[], opts: Opts) {
+  const idArg = need(pos, 0, "note id");
+  const by = actor(ctx, str(opts, "by"));
+  const loc = requireBoard(ctx);
+  const fields = ["title", "body", "url", "file"] as const;
+  if (!fields.some((f) => str(opts, f) !== undefined) && !list(opts, "card").length && !str(opts, "kind"))
+    throw new UserError("nothing to update (use --title, --body, --url, --file, --kind or --card)");
+
+  const n = mutateBoard(loc, (b) => {
+    const n = findNote(b, idArg);
+    const title = str(opts, "title")?.trim();
+    if (title === "") throw new UserError("title can't be empty");
+    if (title !== undefined) n.title = title;
+    if (str(opts, "kind") !== undefined) n.kind = parseKind(str(opts, "kind"));
+    if (str(opts, "body") !== undefined) n.body = str(opts, "body")!;
+    if (str(opts, "url") !== undefined) n.url = str(opts, "url")!;
+    const file = noteFile(ctx, loc.root, str(opts, "file"));
+    if (file !== undefined) n.file = file;
+    const cards = list(opts, "card");
+    if (cards.length) n.cards = [...new Set([...n.cards, ...noteCards(b, cards)])];
+    stampNote(ctx, n, by);
+    return n;
+  });
+  emit(ctx, opts, n, `Updated ${formatNoteLine(n)}`);
+}
+
+/** Tie a note to the cards that came out of it — the plan-to-board trail. */
+function noteLink(ctx: Ctx, pos: string[], opts: Opts) {
+  const idArg = need(pos, 0, "note id");
+  const keys = [...pos.slice(1), ...list(opts, "card")];
+  if (!keys.length) throw new UserError("missing card(s) to link (board note link LOOP-N3 LOOP-4)");
+  const by = actor(ctx, str(opts, "by"));
+
+  const { n, added } = mutateBoard(requireBoard(ctx), (b) => {
+    const n = findNote(b, idArg);
+    const added = noteCards(b, keys).filter((k) => !n.cards.includes(k));
+    n.cards.push(...added);
+    if (added.length) stampNote(ctx, n, by);
+    return { n, added };
+  });
+  emit(ctx, opts, n, added.length ? `${n.id} → ${added.join(", ")}` : `${n.id} already links those`);
+}
+
+function noteRemove(ctx: Ctx, pos: string[], opts: Opts) {
+  const idArg = need(pos, 0, "note id");
+  const n = mutateBoard(requireBoard(ctx), (b) => {
+    const n = findNote(b, idArg);
+    b.notes = b.notes.filter((x) => x !== n);
+    return n;
+  });
+  emit(ctx, opts, n, `Deleted ${n.id} ${n.title}`);
 }
 
 // --- account (SPEC §9) ---------------------------------------------------

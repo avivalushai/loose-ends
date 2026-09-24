@@ -47,9 +47,26 @@ export function sortFeatures(fs: Feature[]): Feature[] {
   );
 }
 
-/** The card `touch` attaches files to: the most recently updated active card. */
+/** The most recently updated active card. */
 export function activeFeature(board: Board): Feature | undefined {
   return sortFeatures(board.features.filter((f) => f.status === "active"))[0];
+}
+
+/** Where a file lives, coarsely: the first two path segments. */
+const area = (file: string) => file.split("/").slice(0, 2).join("/");
+
+/**
+ * Whether a file plausibly belongs to a card.
+ *
+ * Being the only active card is not evidence. A card about the home page
+ * collected eleven files of unrelated traffic work that way, because it
+ * happened to be the one card in progress. A card with files has an area;
+ * a file outside every one of them belongs to different work.
+ */
+export function fileFits(f: Feature, file: string): boolean {
+  if (!f.files.length) return true; // a card with no files yet adopts the first ones
+  const areas = new Set(f.files.map(area));
+  return areas.has(area(file));
 }
 
 export function ageDays(ctx: Ctx, iso: string): number {

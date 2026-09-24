@@ -23,7 +23,7 @@ interface Command {
 
 const COMMANDS: Record<string, Command> = {
   init: { usage: `init [--name "Looper"] [--key LOOP]`, options: { name: s, key: s }, run: cmd.init },
-  list: { usage: "list [--status parked[,review]] [--type bug] [--all]", options: { status: s, type: s, all: flag }, run: cmd.listCmd },
+  list: { usage: "list [--status parked[,review]] [--type bug|question] [--all]", options: { status: s, type: s, all: flag }, run: cmd.listCmd },
   show: { usage: "show LOOP-3", options: {}, run: cmd.show },
   add: {
     usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]... [--file path]...`,
@@ -31,8 +31,8 @@ const COMMANDS: Record<string, Command> = {
     run: cmd.add,
   },
   update: {
-    usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]... [--file path]...",
-    options: { title: s, note: s, next: s, status: s, type: s, "done-when": many, file: many },
+    usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]... [--file path]... [--unfile path]...",
+    options: { title: s, note: s, next: s, status: s, type: s, "done-when": many, file: many, unfile: many },
     run: cmd.update,
   },
   step: { usage: `step LOOP-3 "Render buffer"|2 [--done|--undone|--remove]`, options: { done: flag, undone: flag, remove: flag }, run: cmd.step },
@@ -40,8 +40,19 @@ const COMMANDS: Record<string, Command> = {
   review: { usage: `review LOOP-3 [--note "What to check"]`, options: { note: s }, run: cmd.review },
   done: { usage: "done LOOP-3", options: {}, run: cmd.done },
   merge: { usage: "merge LOOP-15 --into LOOP-3", options: { into: s }, run: cmd.merge },
+  ask: {
+    usage: `ask "Which auth provider?" [--status active] [--note "..."]`,
+    options: { status: s, next: s, note: s, step: many, "done-when": many, file: many },
+    run: cmd.ask,
+  },
+  answer: { usage: `answer LOOP-7 "What you found out" [--done]`, options: { note: s, done: flag }, run: cmd.answer },
+  note: {
+    usage: `note add brainstorm|plan|reference "Title" [--body ...] [--url ...] [--file ...] [--card LOOP-3]...\n         note list [--kind plan] · note show LOOP-N3 · note update LOOP-N3 ... · note link LOOP-N3 LOOP-4 · note rm LOOP-N3`,
+    options: { kind: s, title: s, body: s, url: s, file: s, card: many },
+    run: cmd.note,
+  },
   delete: { usage: "delete LOOP-3", options: {}, run: cmd.remove },
-  touch: { usage: "touch <file>...", options: {}, run: cmd.touch },
+  touch: { usage: "touch <file>... [--card LOOP-3]", options: { card: s }, run: cmd.touch },
   context: { usage: "context", options: {}, run: cmd.context },
   ui: { usage: "ui [--port 4747] [--no-open]", options: { port: s, "no-open": flag }, run: cmd.ui },
   login: { usage: "login [--no-open]", options: { "no-open": flag }, run: cmd.login },
@@ -57,7 +68,7 @@ export function helpText(): string {
     ...Object.values(COMMANDS).map((c) => `  board ${c.usage}`),
     "",
     "Global: --json (machine output)  --by claude|user  -C, --dir <path>",
-    "Cards can be referred to as LOOP-3 or just 3.",
+    "Cards can be referred to as LOOP-3 or just 3; notes as LOOP-N3, N3 or 3.",
   ].join("\n");
 }
 

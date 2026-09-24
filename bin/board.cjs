@@ -216,17 +216,17 @@ function stamp(ctx, f, by, logText) {
   f.updatedBy = by;
   if (logText) f.log.push({ at, by, text: logText });
 }
-function statusLog(to, note) {
+function statusLog(to, note3) {
   const base = { idea: "Moved to ideas", active: "Started", parked: "Parked", review: "Moved to review", done: "Done" }[to];
-  return note && to !== "idea" && to !== "done" ? `${base} \u2014 ${note}` : base;
+  return note3 && to !== "idea" && to !== "done" ? `${base} \u2014 ${note3}` : base;
 }
-function setStatus(ctx, f, to, by, note) {
-  if (note !== void 0) f.note = note;
+function setStatus(ctx, f, to, by, note3) {
+  if (note3 !== void 0) f.note = note3;
   if (to === "parked" && !f.note.trim())
     throw new UserError(`parking needs a note saying where you stopped (--note "...")`);
-  if (f.status === to && note === void 0) return;
+  if (f.status === to && note3 === void 0) return;
   f.status = to;
-  stamp(ctx, f, by, statusLog(to, note ?? ""));
+  stamp(ctx, f, by, statusLog(to, note3 ?? ""));
 }
 function progress(f) {
   return { done: f.steps.filter((s2) => s2.done).length, total: f.steps.length };
@@ -238,6 +238,11 @@ function sortFeatures(fs10) {
 }
 function activeFeature(board2) {
   return sortFeatures(board2.features.filter((f) => f.status === "active"))[0];
+}
+function fileFits(f, file) {
+  if (!f.files.length) return true;
+  const areas = new Set(f.files.map(area));
+  return areas.has(area(file));
 }
 function ageDays(ctx, iso) {
   return Math.floor((Date.parse(nowIso(ctx)) - Date.parse(iso)) / 864e5);
@@ -268,13 +273,14 @@ function ageLabel(ctx, iso) {
   if (mins < 1440) return `${Math.floor(mins / 60)}h ago`;
   return `${Math.floor(mins / 1440)}d ago`;
 }
-var STATUS_ORDER, NOTE_LABEL, clip;
+var STATUS_ORDER, NOTE_LABEL, area, clip;
 var init_features = __esm({
   "cli/src/features.ts"() {
     "use strict";
     init_context();
     STATUS_ORDER = ["active", "parked", "review", "idea", "done"];
     NOTE_LABEL = { active: "Next", parked: "Stopped", review: "Check" };
+    area = (file) => file.split("/").slice(0, 2).join("/");
     clip = (s2, n) => s2.length > n ? s2.slice(0, n - 1) + "\u2026" : s2;
   }
 });
@@ -335,7 +341,8 @@ function validateBoard(b) {
   if (!isObj(b.settings)) err("settings", "must be an object");
   else if (!oneOf(GRANULARITIES, b.settings.granularity))
     err("settings.granularity", `must be one of ${GRANULARITIES.join(", ")}`);
-  if (!Number.isInteger(b.nextNum) || b.nextNum < 1) err("nextNum", "must be a positive integer");
+  for (const k of ["nextNum", "nextNoteNum"])
+    if (!Number.isInteger(b[k]) || b[k] < 1) err(k, "must be a positive integer");
   if (!Array.isArray(b.features)) {
     err("features", "must be an array");
     return errs;
@@ -376,6 +383,32 @@ function validateBoard(b) {
           err(`${p}.log[${j}]`, "must be { at: ISO timestamp, by: claude|user, text: string }");
       });
   });
+  if (!Array.isArray(b.notes)) {
+    err("notes", "must be an array");
+    return errs;
+  }
+  const seenNotes = /* @__PURE__ */ new Set();
+  b.notes.forEach((n, i) => {
+    const p = `notes[${i}]`;
+    if (!isObj(n)) return err(p, "must be an object");
+    const m = isStr(n.id) ? NOTE_ID_RE.exec(n.id) : null;
+    if (!m) err(`${p}.id`, "must look like KEY-N12");
+    else {
+      if (projectKey && m[1] !== projectKey) err(`${p}.id`, `prefix must be ${projectKey}`);
+      if (Number.isInteger(b.nextNoteNum) && Number(m[2]) >= b.nextNoteNum)
+        err(`${p}.id`, "number must be below nextNoteNum");
+      if (seenNotes.has(n.id)) err(`${p}.id`, `duplicate id ${n.id}`);
+      seenNotes.add(n.id);
+    }
+    if (!oneOf(NOTE_KINDS, n.kind)) err(`${p}.kind`, `must be one of ${NOTE_KINDS.join(", ")}`);
+    if (!isStr(n.title) || !n.title.trim()) err(`${p}.title`, "must be a non-empty string");
+    for (const k of ["body", "url", "file"]) if (!isStr(n[k])) err(`${p}.${k}`, "must be a string");
+    if (!Array.isArray(n.cards) || !n.cards.every(isStr)) err(`${p}.cards`, "must be an array of card keys");
+    else for (const key of n.cards) if (!seen.has(key)) err(`${p}.cards`, `no card ${key} on this board`);
+    for (const k of ["createdAt", "updatedAt"])
+      if (!isStr(n[k]) || !ISO_RE.test(n[k])) err(`${p}.${k}`, "must be an ISO-8601 UTC timestamp");
+    if (!oneOf(ACTORS, n.updatedBy)) err(`${p}.updatedBy`, `must be one of ${ACTORS.join(", ")}`);
+  });
   return errs;
 }
 function emptyBoard(name, key) {
@@ -384,23 +417,75 @@ function emptyBoard(name, key) {
     project: { name, key },
     settings: { granularity: "normal" },
     nextNum: 1,
-    features: []
+    nextNoteNum: 1,
+    features: [],
+    notes: []
   };
 }
-var SCHEMA_VERSION, STATUSES, TYPES, ACTORS, GRANULARITIES, KEY_RE, ISO_RE, isObj, isStr, oneOf;
+var SCHEMA_VERSION, STATUSES, TYPES, NOTE_KINDS, ACTORS, GRANULARITIES, KEY_RE, NOTE_ID_RE, ISO_RE, isObj, isStr, oneOf;
 var init_schema = __esm({
   "cli/src/schema.ts"() {
     "use strict";
-    SCHEMA_VERSION = 1;
+    SCHEMA_VERSION = 2;
     STATUSES = ["idea", "active", "parked", "review", "done"];
-    TYPES = ["feature", "bug", "chore"];
+    TYPES = ["feature", "bug", "chore", "question"];
+    NOTE_KINDS = ["brainstorm", "plan", "reference"];
     ACTORS = ["claude", "user"];
     GRANULARITIES = ["coarse", "normal", "fine"];
     KEY_RE = /^[A-Z][A-Z0-9]{1,5}$/;
+    NOTE_ID_RE = /^([A-Z][A-Z0-9]*)-N(\d+)$/;
     ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
     isObj = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
     isStr = (v) => typeof v === "string";
     oneOf = (list2, v) => isStr(v) && list2.includes(v);
+  }
+});
+
+// cli/src/notes.ts
+function findNote(board2, input) {
+  const raw = input.trim().toUpperCase();
+  const want = /^\d+$/.test(raw) ? `${board2.project.key}-N${raw}` : /^N\d+$/.test(raw) ? `${board2.project.key}-${raw}` : raw;
+  const n = board2.notes.find((x) => x.id === want);
+  if (!n) throw new UserError(`no note ${want}`);
+  return n;
+}
+function stampNote(ctx, n, by) {
+  n.updatedAt = nowIso(ctx);
+  n.updatedBy = by;
+}
+function noteTarget(n) {
+  return n.url || n.file || "";
+}
+function sortNotes(ns) {
+  return [...ns].sort(
+    (a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.updatedAt.localeCompare(a.updatedAt)
+  );
+}
+function formatNoteLine(n, idWidth = 0) {
+  const parts = [n.id.padEnd(idWidth), n.kind.padEnd(10), n.title];
+  const target = noteTarget(n);
+  if (target) parts.push(`\u2014 ${clip2(target, 60)}`);
+  else if (n.body) parts.push(`\u2014 ${clip2(oneLine(n.body), 60)}`);
+  if (n.cards.length) parts.push(`\u2192 ${n.cards.join(" ")}`);
+  return parts.join("  ");
+}
+function formatNoteDetail(ctx, n) {
+  const lines = [`${n.id}  ${n.title}`, `${n.kind} \xB7 updated ${ageLabel(ctx, n.updatedAt)} by ${n.updatedBy}`];
+  if (n.url) lines.push(`Link: ${n.url}`);
+  if (n.file) lines.push(`File: ${n.file}`);
+  if (n.cards.length) lines.push(`Cards: ${n.cards.join(", ")}`);
+  if (n.body) lines.push("", n.body);
+  return lines.join("\n");
+}
+var KIND_ORDER, clip2, oneLine;
+var init_notes = __esm({
+  "cli/src/notes.ts"() {
+    "use strict";
+    init_context();
+    init_features();
+    KIND_ORDER = ["brainstorm", "plan", "reference"];
+    clip2 = (s2, n) => s2.length > n ? s2.slice(0, n - 1) + "\u2026" : s2;
+    oneLine = (s2) => s2.replace(/\s+/g, " ").trim();
   }
 });
 
@@ -431,7 +516,8 @@ var init_migrations = __esm({
     "use strict";
     init_schema();
     MIGRATIONS = {
-      // v1 is the first released schema; nothing to migrate yet.
+      // v1 → v2: brainstorms, plans and references live beside the cards.
+      1: (board2) => ({ ...board2, nextNoteNum: 1, notes: [] })
     };
     MigrationError = class extends Error {
     };
@@ -682,6 +768,29 @@ function handleApi(ctx, req) {
     if (method !== "GET") throw new HttpError(405, "use GET");
     return loadBoard(p);
   }
+  if (seg[2] === "notes") {
+    const b = req.body ?? {};
+    const fields = [["--title", "title"], ["--body", "body"], ["--url", "url"], ["--file", "file"]];
+    if (seg.length === 3) {
+      if (method !== "POST") throw new HttpError(405, "use POST");
+      const argv = ["note", "add", str(b.kind, "kind"), str(b.title, "title")];
+      for (const [flag2, key] of fields)
+        if (key !== "title" && b[key] !== void 0 && b[key] !== "") argv.push(flag2, str(b[key], key));
+      for (const c of b.cards ?? []) argv.push("--card", str(c, "card key"));
+      return board(ctx, p, argv);
+    }
+    if (seg.length === 4) {
+      const id = seg[3].toUpperCase();
+      note(p, id);
+      if (method === "DELETE") return board(ctx, p, ["note", "rm", id]);
+      if (method !== "PATCH") throw new HttpError(405, "use PATCH or DELETE");
+      const argv = ["note", "update", id];
+      if (b.kind !== void 0 && b.kind !== "") argv.push("--kind", str(b.kind, "kind"));
+      for (const [flag2, key] of fields) if (b[key] !== void 0) argv.push(flag2, str(b[key], key));
+      for (const c of b.cards ?? []) argv.push("--card", str(c, "card key"));
+      return argv.length > 3 ? board(ctx, p, argv) : note(p, id);
+    }
+  }
   if (seg[2] !== "features") throw new HttpError(404, `no route ${path11}`);
   if (seg.length === 3) {
     if (method !== "POST") throw new HttpError(405, "use POST");
@@ -702,7 +811,7 @@ function handleApi(ctx, req) {
   }
   throw new HttpError(404, `no route ${path11}`);
 }
-var HttpError, feature, str;
+var HttpError, feature, note, str;
 var init_api = __esm({
   "server/src/api.ts"() {
     "use strict";
@@ -719,6 +828,11 @@ var init_api = __esm({
       const f = loadBoard(project2).features.find((x) => x.key === key);
       if (!f) throw new HttpError(404, `no card ${key}`);
       return f;
+    };
+    note = (project2, id) => {
+      const n = loadBoard(project2).notes.find((x) => x.id === id);
+      if (!n) throw new HttpError(404, `no note ${id}`);
+      return n;
     };
     str = (v, what) => {
       if (typeof v !== "string") throw new HttpError(400, `${what} must be a string`);
@@ -1020,12 +1134,26 @@ function context(ctx, { opts }) {
     return emit(ctx, opts, { board: null }, "Loose Ends: no board in this project yet. Offer to create one with `board init`.");
   }
   const b = readBoard(loc.file);
-  const by = (s2) => sortFeatures(b.features.filter((f) => f.status === s2));
+  const work = b.features.filter((f) => f.type !== "question");
+  const questions = sortFeatures(b.features.filter((f) => f.type === "question" && f.status !== "done"));
+  const by = (s2) => sortFeatures(work.filter((f) => f.status === s2));
   const counts = Object.fromEntries(STATUSES.map((s2) => [s2, b.features.filter((f) => f.status === s2).length]));
+  const noteCounts = Object.fromEntries(NOTE_KINDS.map((k) => [k, b.notes.filter((n) => n.kind === k).length]));
   if (opts.json)
     return ctx.out(
       JSON.stringify(
-        { project: b.project, root: loc.root, counts, active: by("active"), parked: by("parked"), review: by("review"), ideas: by("idea") },
+        {
+          project: b.project,
+          root: loc.root,
+          counts,
+          noteCounts,
+          active: by("active"),
+          parked: by("parked"),
+          review: by("review"),
+          ideas: by("idea"),
+          questions,
+          notes: sortNotes(b.notes)
+        },
         null,
         2
       )
@@ -1055,6 +1183,13 @@ function context(ctx, { opts }) {
     const shown = ideas.slice(0, 10).map((f) => `${f.key} ${f.title}`);
     lines.push(`Ideas: ${shown.join(" \xB7 ")}${ideas.length > 10 ? ` \xB7 +${ideas.length - 10} more` : ""}`);
   }
+  if (questions.length) {
+    lines.push("Open questions:");
+    for (const q of questions)
+      lines.push(`  ${q.key} ${q.title}${q.status === "review" && q.note ? ` \u2014 answered: ${q.note}` : ""}`);
+  }
+  const notes = NOTE_KINDS.filter((k) => noteCounts[k]).map((k) => `${noteCounts[k]} ${k}${noteCounts[k] === 1 ? "" : "s"}`);
+  if (notes.length) lines.push(`Notes: ${notes.join(" \xB7 ")} \u2014 \`board note list\``);
   ctx.out(lines.join("\n"));
 }
 function add(ctx, { pos, opts }) {
@@ -1062,7 +1197,7 @@ function add(ctx, { pos, opts }) {
   if (!title) throw new UserError("title can't be empty");
   const status = parseStatus(str2(opts, "status")) ?? "idea";
   const type = parseType(str2(opts, "type")) ?? "feature";
-  const note = str2(opts, "note") ?? str2(opts, "next") ?? "";
+  const note3 = str2(opts, "note") ?? str2(opts, "next") ?? "";
   const by = actor(ctx, str2(opts, "by"));
   const loc = requireBoard(ctx);
   const f = mutateBoard(loc, (b) => {
@@ -1072,7 +1207,7 @@ function add(ctx, { pos, opts }) {
       title,
       type,
       status,
-      note,
+      note: note3,
       doneWhen: list(opts, "done-when"),
       steps: list(opts, "step").map((text) => ({ text, done: false })),
       files: projectFiles(loc.root, ctx.cwd, list(opts, "file")),
@@ -1081,7 +1216,7 @@ function add(ctx, { pos, opts }) {
       updatedBy: by,
       log: [{ at, by, text: status === "idea" ? "Created" : `Created \u2014 ${status}` }]
     };
-    if (status === "parked" && !note.trim()) throw new UserError(`parking needs a note saying where you stopped (--note "...")`);
+    if (status === "parked" && !note3.trim()) throw new UserError(`parking needs a note saying where you stopped (--note "...")`);
     b.nextNum++;
     b.features.push(f2);
     return f2;
@@ -1094,10 +1229,10 @@ function update(ctx, { pos, opts }) {
   const status = parseStatus(str2(opts, "status"));
   const type = parseType(str2(opts, "type"));
   const title = str2(opts, "title")?.trim();
-  const note = str2(opts, "note") ?? str2(opts, "next");
+  const note3 = str2(opts, "note") ?? str2(opts, "next");
   const doneWhen = list(opts, "done-when");
   if (title === "") throw new UserError("title can't be empty");
-  if (!status && !type && title === void 0 && note === void 0 && !doneWhen.length && !list(opts, "file").length)
+  if (!status && !type && title === void 0 && note3 === void 0 && !doneWhen.length && !list(opts, "file").length && !list(opts, "unfile").length)
     throw new UserError("nothing to update (use --title, --note, --status, --type or --done-when)");
   const f = mutateBoard(requireBoard(ctx), (b) => {
     const f2 = findFeature(b, keyArg);
@@ -1114,17 +1249,23 @@ function update(ctx, { pos, opts }) {
       f2.doneWhen = doneWhen;
       logs.push("Updated done-when");
     }
-    const added = projectFiles(requireBoard(ctx).root, ctx.cwd, list(opts, "file")).filter((x) => !f2.files.includes(x));
+    const root = requireBoard(ctx).root;
+    const added = projectFiles(root, ctx.cwd, list(opts, "file")).filter((x) => !f2.files.includes(x));
     if (added.length) {
       f2.files.push(...added);
       logs.push(`Files: ${added.join(", ")}`);
     }
+    const dropped = projectFiles(root, ctx.cwd, list(opts, "unfile")).filter((x) => f2.files.includes(x));
+    if (dropped.length) {
+      f2.files = f2.files.filter((x) => !dropped.includes(x));
+      logs.push(`Removed files: ${dropped.join(", ")}`);
+    }
     if (status && status !== f2.status) {
-      setStatus(ctx, f2, status, by, note);
+      setStatus(ctx, f2, status, by, note3);
     } else {
-      if (note !== void 0 && note !== f2.note) {
-        f2.note = note;
-        logs.push(note ? `Note: ${note}` : "Cleared note");
+      if (note3 !== void 0 && note3 !== f2.note) {
+        f2.note = note3;
+        logs.push(note3 ? `Note: ${note3}` : "Cleared note");
       }
       if (f2.status === "parked" && !f2.note.trim()) throw new UserError("a parked card needs a note");
     }
@@ -1138,10 +1279,10 @@ function statusCommand(to) {
   return (ctx, { pos, opts }) => {
     const keyArg = need(pos, 0, "card key");
     const by = actor(ctx, str2(opts, "by"));
-    const note = str2(opts, "note");
+    const note3 = str2(opts, "note");
     const f = mutateBoard(requireBoard(ctx), (b) => {
       const f2 = findFeature(b, keyArg);
-      setStatus(ctx, f2, to, by, note);
+      setStatus(ctx, f2, to, by, note3);
       return f2;
     });
     emit(ctx, opts, f, `${f.key} ${f.title} \u2192 ${f.status}`);
@@ -1210,16 +1351,21 @@ function touch(ctx, { pos, opts }) {
   if (!loc) return nothing("no board");
   const rels = projectFiles(loc.root, ctx.cwd, pos);
   if (!rels.length) return nothing("no files inside the project");
-  const probe = activeFeature(readBoard(loc.file));
-  if (!probe || rels.every((r) => probe.files.includes(r))) return nothing(probe ? "already attached" : "no active card");
+  const target = str2(opts, "card");
+  const board2 = readBoard(loc.file);
+  const probe = target ? findFeature(board2, target) : activeFeature(board2);
+  if (!probe) return nothing("no active card");
+  const wanted = (f, r) => !f.files.includes(r) && (!!target || fileFits(f, r));
+  if (!rels.some((r) => wanted(probe, r)))
+    return nothing(rels.every((r) => probe.files.includes(r)) ? "already attached" : "no card these files belong to");
   const by = actor(ctx, str2(opts, "by"));
   const res = mutateBoard(loc, (b) => {
-    const f = activeFeature(b);
+    const f = target ? findFeature(b, target) : activeFeature(b);
     if (!f) return null;
-    const added = rels.filter((r) => !f.files.includes(r));
-    f.files.push(...new Set(added));
+    const added = [...new Set(rels.filter((r) => wanted(f, r)))];
+    f.files.push(...added);
     if (added.length) stamp(ctx, f, by);
-    return { f, added: [...new Set(added)] };
+    return { f, added };
   });
   if (!res || !res.added.length) return nothing("already attached");
   emit(ctx, opts, { card: res.f.key, added: res.added }, `${res.f.key} + ${res.added.join(", ")}`);
@@ -1252,6 +1398,142 @@ function openBrowser(url) {
     (0, import_node_child_process.spawn)(cmd, [url], { stdio: "ignore", detached: true, shell: process.platform === "win32" }).unref();
   } catch {
   }
+}
+function ask(ctx, { pos, opts }) {
+  add(ctx, { pos, opts: { ...opts, type: "question" } });
+}
+function answer(ctx, { pos, opts }) {
+  const keyArg = need(pos, 0, "question key");
+  const text = (pos[1] ?? str2(opts, "note") ?? "").trim();
+  if (!text) throw new UserError(`missing the answer (board answer LE-7 "what you found out")`);
+  const by = actor(ctx, str2(opts, "by"));
+  const f = mutateBoard(requireBoard(ctx), (b) => {
+    const f2 = findFeature(b, keyArg);
+    if (f2.type !== "question")
+      throw new UserError(`${f2.key} is a ${f2.type}, not a question \u2014 use \`board update ${f2.key} --note\``);
+    setStatus(ctx, f2, opts.done ? "done" : "review", by, text);
+    return f2;
+  });
+  emit(ctx, opts, f, `${f.key} ${f.status === "done" ? "answered and closed" : "answered \u2014 decide when you're ready"}`);
+}
+function parseKind(v) {
+  if (v === void 0) throw new UserError(`missing kind \u2014 one of ${NOTE_KINDS.join(", ")}`);
+  const k = v.toLowerCase().replace(/s$/, "");
+  if (!NOTE_KINDS.includes(k)) throw new UserError(`kind must be one of ${NOTE_KINDS.join(", ")}`);
+  return k;
+}
+function noteCards(b, keys) {
+  return [...new Set(keys.map((k) => findFeature(b, k).key))];
+}
+function noteFile(ctx, root, v) {
+  if (v === void 0) return void 0;
+  if (!v) return "";
+  const [rel] = projectFiles(root, ctx.cwd, [v]);
+  if (!rel) throw new UserError(`${v} is outside this project`);
+  return rel;
+}
+function note2(ctx, { pos, opts }) {
+  const sub = (pos[0] ?? "list").toLowerCase();
+  const rest = pos.slice(1);
+  const subs = {
+    add: noteAdd,
+    list: noteList,
+    ls: noteList,
+    show: noteShow,
+    update: noteUpdate,
+    edit: noteUpdate,
+    link: noteLink,
+    rm: noteRemove,
+    delete: noteRemove
+  };
+  const fn = subs[sub];
+  if (!fn) throw new UserError(`unknown: board note ${sub} \u2014 use add, list, show, update, link or rm`);
+  fn(ctx, rest, opts);
+}
+function noteAdd(ctx, pos, opts) {
+  const kind = parseKind(pos[0]);
+  const title = need(pos, 1, `title (e.g. board note add reference "The CRDT paper" --url ...)`).trim();
+  if (!title) throw new UserError("title can't be empty");
+  const by = actor(ctx, str2(opts, "by"));
+  const loc = requireBoard(ctx);
+  const n = mutateBoard(loc, (b) => {
+    const at = nowIso(ctx);
+    const n2 = {
+      id: `${b.project.key}-N${b.nextNoteNum}`,
+      kind,
+      title,
+      body: str2(opts, "body") ?? "",
+      url: str2(opts, "url") ?? "",
+      file: noteFile(ctx, loc.root, str2(opts, "file")) ?? "",
+      cards: noteCards(b, list(opts, "card")),
+      createdAt: at,
+      updatedAt: at,
+      updatedBy: by
+    };
+    b.nextNoteNum++;
+    b.notes.push(n2);
+    return n2;
+  });
+  emit(ctx, opts, n, `Added ${n.id} ${n.title} (${n.kind})`);
+}
+function noteList(ctx, _pos, opts) {
+  const b = readBoard(requireBoard(ctx).file);
+  const kind = str2(opts, "kind") ? parseKind(str2(opts, "kind")) : void 0;
+  const ns = sortNotes(kind ? b.notes.filter((n) => n.kind === kind) : b.notes);
+  const w = Math.max(0, ...ns.map((n) => n.id.length));
+  emit(ctx, opts, ns, ns.length ? ns.map((n) => formatNoteLine(n, w)) : ["No notes."]);
+}
+function noteShow(ctx, pos, opts) {
+  const b = readBoard(requireBoard(ctx).file);
+  const n = findNote(b, need(pos, 0, "note id (e.g. LOOP-N3)"));
+  emit(ctx, opts, n, formatNoteDetail(ctx, n));
+}
+function noteUpdate(ctx, pos, opts) {
+  const idArg = need(pos, 0, "note id");
+  const by = actor(ctx, str2(opts, "by"));
+  const loc = requireBoard(ctx);
+  const fields = ["title", "body", "url", "file"];
+  if (!fields.some((f) => str2(opts, f) !== void 0) && !list(opts, "card").length && !str2(opts, "kind"))
+    throw new UserError("nothing to update (use --title, --body, --url, --file, --kind or --card)");
+  const n = mutateBoard(loc, (b) => {
+    const n2 = findNote(b, idArg);
+    const title = str2(opts, "title")?.trim();
+    if (title === "") throw new UserError("title can't be empty");
+    if (title !== void 0) n2.title = title;
+    if (str2(opts, "kind") !== void 0) n2.kind = parseKind(str2(opts, "kind"));
+    if (str2(opts, "body") !== void 0) n2.body = str2(opts, "body");
+    if (str2(opts, "url") !== void 0) n2.url = str2(opts, "url");
+    const file = noteFile(ctx, loc.root, str2(opts, "file"));
+    if (file !== void 0) n2.file = file;
+    const cards = list(opts, "card");
+    if (cards.length) n2.cards = [.../* @__PURE__ */ new Set([...n2.cards, ...noteCards(b, cards)])];
+    stampNote(ctx, n2, by);
+    return n2;
+  });
+  emit(ctx, opts, n, `Updated ${formatNoteLine(n)}`);
+}
+function noteLink(ctx, pos, opts) {
+  const idArg = need(pos, 0, "note id");
+  const keys = [...pos.slice(1), ...list(opts, "card")];
+  if (!keys.length) throw new UserError("missing card(s) to link (board note link LOOP-N3 LOOP-4)");
+  const by = actor(ctx, str2(opts, "by"));
+  const { n, added } = mutateBoard(requireBoard(ctx), (b) => {
+    const n2 = findNote(b, idArg);
+    const added2 = noteCards(b, keys).filter((k) => !n2.cards.includes(k));
+    n2.cards.push(...added2);
+    if (added2.length) stampNote(ctx, n2, by);
+    return { n: n2, added: added2 };
+  });
+  emit(ctx, opts, n, added.length ? `${n.id} \u2192 ${added.join(", ")}` : `${n.id} already links those`);
+}
+function noteRemove(ctx, pos, opts) {
+  const idArg = need(pos, 0, "note id");
+  const n = mutateBoard(requireBoard(ctx), (b) => {
+    const n2 = findNote(b, idArg);
+    b.notes = b.notes.filter((x) => x !== n2);
+    return n2;
+  });
+  emit(ctx, opts, n, `Deleted ${n.id} ${n.title}`);
 }
 async function postJson(url, body, timeoutMs = 1e4) {
   const controller = new AbortController();
@@ -1339,6 +1621,7 @@ var init_commands = __esm({
     init_fsutil();
     init_registry();
     init_schema();
+    init_notes();
     init_store();
     str2 = (o, k) => typeof o[k] === "string" ? o[k] : void 0;
     list = (o, k) => Array.isArray(o[k]) ? o[k] : [];
@@ -1358,7 +1641,7 @@ function helpText() {
     ...Object.values(COMMANDS).map((c) => `  board ${c.usage}`),
     "",
     "Global: --json (machine output)  --by claude|user  -C, --dir <path>",
-    "Cards can be referred to as LOOP-3 or just 3."
+    "Cards can be referred to as LOOP-3 or just 3; notes as LOOP-N3, N3 or 3."
   ].join("\n");
 }
 function run(argv, ctx) {
@@ -1417,7 +1700,7 @@ var init_cli = __esm({
     flag = { type: "boolean" };
     COMMANDS = {
       init: { usage: `init [--name "Looper"] [--key LOOP]`, options: { name: s, key: s }, run: init },
-      list: { usage: "list [--status parked[,review]] [--type bug] [--all]", options: { status: s, type: s, all: flag }, run: listCmd },
+      list: { usage: "list [--status parked[,review]] [--type bug|question] [--all]", options: { status: s, type: s, all: flag }, run: listCmd },
       show: { usage: "show LOOP-3", options: {}, run: show },
       add: {
         usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]... [--file path]...`,
@@ -1425,8 +1708,8 @@ var init_cli = __esm({
         run: add
       },
       update: {
-        usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]... [--file path]...",
-        options: { title: s, note: s, next: s, status: s, type: s, "done-when": many, file: many },
+        usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]... [--file path]... [--unfile path]...",
+        options: { title: s, note: s, next: s, status: s, type: s, "done-when": many, file: many, unfile: many },
         run: update
       },
       step: { usage: `step LOOP-3 "Render buffer"|2 [--done|--undone|--remove]`, options: { done: flag, undone: flag, remove: flag }, run: step },
@@ -1434,8 +1717,20 @@ var init_cli = __esm({
       review: { usage: `review LOOP-3 [--note "What to check"]`, options: { note: s }, run: review },
       done: { usage: "done LOOP-3", options: {}, run: done },
       merge: { usage: "merge LOOP-15 --into LOOP-3", options: { into: s }, run: merge },
+      ask: {
+        usage: `ask "Which auth provider?" [--status active] [--note "..."]`,
+        options: { status: s, next: s, note: s, step: many, "done-when": many, file: many },
+        run: ask
+      },
+      answer: { usage: `answer LOOP-7 "What you found out" [--done]`, options: { note: s, done: flag }, run: answer },
+      note: {
+        usage: `note add brainstorm|plan|reference "Title" [--body ...] [--url ...] [--file ...] [--card LOOP-3]...
+         note list [--kind plan] \xB7 note show LOOP-N3 \xB7 note update LOOP-N3 ... \xB7 note link LOOP-N3 LOOP-4 \xB7 note rm LOOP-N3`,
+        options: { kind: s, title: s, body: s, url: s, file: s, card: many },
+        run: note2
+      },
       delete: { usage: "delete LOOP-3", options: {}, run: remove },
-      touch: { usage: "touch <file>...", options: {}, run: touch },
+      touch: { usage: "touch <file>... [--card LOOP-3]", options: { card: s }, run: touch },
       context: { usage: "context", options: {}, run: context },
       ui: { usage: "ui [--port 4747] [--no-open]", options: { port: s, "no-open": flag }, run: ui },
       login: { usage: "login [--no-open]", options: { "no-open": flag }, run: login },
