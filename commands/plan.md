@@ -8,7 +8,9 @@ Put a plan on the board: $ARGUMENTS
 
 1. **Find the doc.** If they named a file, read it. If they didn't, look for the obvious candidates (`SPEC.md`, `PLAN.md`, `README.md`, anything under `docs/`) and ask which one rather than guessing.
 
-2. **Pull out what it proposes building** — things that would be user-visible outcomes. Name each one in the document's own words, short enough to read in a table. Leave out background, reasoning, competitor notes, open questions and anything already built: a plan is mostly prose, and only some of it is work.
+2. **Pull out what it proposes building** — things that would be user-visible outcomes. Name each one in the document's own words, short enough to read in a table. Leave out background, reasoning, competitor notes and anything already built: a plan is mostly prose, and only some of it is work.
+
+   **Unticked checkboxes are work too.** "Open questions", "to decide", "follow-ups" — each one is a job someone has to do. Add them as `--type chore`. Ticked boxes are done; leave them.
 
 3. **Check what's already there** with `board list --all --json` and match on titles that mean the same thing, not just identical strings. Plans get edited and re-read; adding the same six cards twice is worse than adding none.
 

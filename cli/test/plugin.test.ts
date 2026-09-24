@@ -74,6 +74,8 @@ describe("skill and commands", () => {
     expect(body).toContain("A planning document is not a board");
     expect(body).toContain("skip what's already there");
     expect(body).toContain("--file <the doc>");
+    expect(body).toContain("An unchecked checklist is work");
+    expect(read("commands/plan.md")).toContain("--type chore");
     expect(read("commands/plan.md")).toContain("board list --all --json");
   });
 

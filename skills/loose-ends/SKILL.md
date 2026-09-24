@@ -80,8 +80,12 @@ turn it into cards:
 
 Rules that keep it useful:
 
-- Extract only what would be user-visible work. Background, reasoning and open
-  questions belong in the doc, not on the board.
+- Extract what would be user-visible work. Background, reasoning, competitor
+  notes and evidence belong in the doc, not on the board.
+- **An unchecked checklist is work, whatever section it sits under.** "Open
+  questions", "to decide", "follow-ups" — each unticked box is something someone
+  has to do, sitting in a document nobody reopens. Add those as `chore` cards.
+  A ticked box is already done: leave it.
 - Check `board list --all --json` first and skip what's already there, matching
   on meaning rather than exact titles. Plans get re-read; cards must not double.
 - Add each with `--file <the doc>` so the card points back at the reasoning.
