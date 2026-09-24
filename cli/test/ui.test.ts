@@ -35,6 +35,13 @@ describe("the bundled UI", () => {
     expect(script).toContain("board ui");
   });
 
+  it("keeps ideas out of the progress figure and collapsed by default", () => {
+    // A brainstorm should never make the project look like it went backwards.
+    expect(script).toContain("const committed=fs=>fs.filter(f=>f.status!=='idea')");
+    expect(script).toContain("collapsed:['idea']");
+    expect(script).toContain("data-grp=");
+  });
+
   it("tells the user how to add a project instead of faking one", () => {
     expect(script).toContain("board init");
     expect(script).not.toContain("S.projects.push(");

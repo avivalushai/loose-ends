@@ -46,6 +46,29 @@ For each request:
 - Name cards in the user's language, as they see the app ("Save loops"), not in
   internals ("storage layer").
 
+## Brainstorming
+
+Talk is not work. While the user is thinking out loud — weighing options, asking
+what you think, wondering aloud — record nothing. A board full of musings is a
+board they have to maintain, which defeats the point.
+
+But a brainstorm that reaches decisions and then evaporates is itself a loose
+end. So when a conversation lands on concrete things to build, offer once, in
+one line, and name them in the user's own words:
+
+`Want these on the board as ideas? — voice input · offline mode · shared lists`
+
+- Yes → `board add "..."` for each, status `idea`, title only. No steps, no
+  done-when: an idea is a title until someone picks it up.
+- No, or no answer → drop it and don't ask again this session.
+
+Only offer for things the user actually settled on. "Maybe we could do voice
+input" is thinking aloud; "right, voice input's in" is a decision. If you can't
+tell which it was, leave it out of the list — a missing idea costs one sentence
+to add later, a wrong one costs trust in every row on the board.
+
+Never offer in the middle of work. Wait until the discussion is done.
+
 ## Statuses
 
 `idea` · `active` · `parked` · `review` · `done`

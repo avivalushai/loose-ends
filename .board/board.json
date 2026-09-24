@@ -7,7 +7,7 @@
   "settings": {
     "granularity": "normal"
   },
-  "nextNum": 9,
+  "nextNum": 12,
   "features": [
     {
       "key": "LE-1",
@@ -130,7 +130,7 @@
         },
         {
           "text": "Install on a real project",
-          "done": false
+          "done": true
         }
       ],
       "files": [
@@ -150,7 +150,7 @@
         "cli/test/plugin.test.ts"
       ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T13:17:26Z",
+      "updatedAt": "2026-09-23T14:46:30Z",
       "updatedBy": "claude",
       "log": [
         {
@@ -187,6 +187,11 @@
           "at": "2026-09-23T13:17:26Z",
           "by": "claude",
           "text": "Moved to review — Install it here (/plugin marketplace add this folder) and see whether the board updates itself without being asked"
+        },
+        {
+          "at": "2026-09-23T14:46:30Z",
+          "by": "claude",
+          "text": "Step done: Install on a real project"
         }
       ]
     },
@@ -312,10 +317,14 @@
         "cli/src/account.ts",
         "cli/src/analytics.ts",
         "cli/test/account.test.ts",
-        "cli/test/site.test.ts"
+        "cli/test/site.test.ts",
+        "ui/index.html",
+        "skills/loose-ends/SKILL.md",
+        "cli/test/ui.test.ts",
+        "cli/test/plugin.test.ts"
       ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-23T14:08:39Z",
+      "updatedAt": "2026-09-24T12:20:41Z",
       "updatedBy": "claude",
       "log": [
         {
@@ -426,6 +435,76 @@
           "at": "2026-09-23T14:08:39Z",
           "by": "claude",
           "text": "Moved to review — Built and tested, but it needs your accounts: Clerk keys, Supabase project + schema.sql, Vercel, PostHog EU, and the domain. site/README.md has the table"
+        }
+      ]
+    },
+    {
+      "key": "LE-9",
+      "title": "Ideas weigh nothing and group on their own",
+      "type": "feature",
+      "status": "review",
+      "note": "Built: ideas excluded from the progress figure, Idea group collapsed with a peek line, and a brainstorm rule in the skill. Refresh the UI and see if the Idea group stays out of your way",
+      "doneWhen": [],
+      "steps": [],
+      "files": [],
+      "createdAt": "2026-09-24T12:20:26Z",
+      "updatedAt": "2026-09-24T12:20:41Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T12:20:26Z",
+          "by": "claude",
+          "text": "Created"
+        },
+        {
+          "at": "2026-09-24T12:20:41Z",
+          "by": "claude",
+          "text": "Moved to review — Built: ideas excluded from the progress figure, Idea group collapsed with a peek line, and a brainstorm rule in the skill. Refresh the UI and see if the Idea group stays out of your way"
+        },
+        {
+          "at": "2026-09-24T12:20:41Z",
+          "by": "claude",
+          "text": "Renamed from “Ideas don't count toward progress”"
+        }
+      ]
+    },
+    {
+      "key": "LE-10",
+      "title": "Unify my two git author emails",
+      "type": "feature",
+      "status": "idea",
+      "note": "",
+      "doneWhen": [],
+      "steps": [],
+      "files": [],
+      "createdAt": "2026-09-24T12:20:26Z",
+      "updatedAt": "2026-09-24T12:20:26Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T12:20:26Z",
+          "by": "claude",
+          "text": "Created"
+        }
+      ]
+    },
+    {
+      "key": "LE-11",
+      "title": "Set the GitHub repo website once the site is deployed",
+      "type": "feature",
+      "status": "idea",
+      "note": "",
+      "doneWhen": [],
+      "steps": [],
+      "files": [],
+      "createdAt": "2026-09-24T12:20:26Z",
+      "updatedAt": "2026-09-24T12:20:26Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T12:20:26Z",
+          "by": "claude",
+          "text": "Created"
         }
       ]
     }

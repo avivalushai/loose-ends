@@ -239,6 +239,9 @@ dialog pre{margin:0;padding:16px;max-height:60vh;overflow:auto;font-family:var(-
 .grid tbody tr[data-row]:hover td{background:color-mix(in srgb,var(--sunk) 70%,var(--surface))}
 .grid tr.is-parked td:first-child{box-shadow:inset 3px 0 0 var(--s-parked)}
 .grid tr.is-done .cell-in.title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
+.grid tr.is-idea .prog,.grid tr.is-idea .steps{opacity:.3}
+.grp-toggle{background:none;border:0;cursor:pointer;color:var(--muted);font-size:11px;padding:0 6px 0 0;line-height:1}
+.grp-peek{color:var(--muted);font-weight:400;margin-left:10px;font-size:12px}
 .cell-in{width:100%;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:5px;min-width:0;text-overflow:ellipsis}
 .cell-in:hover{border-color:var(--line)}
 .cell-in:focus{border-color:var(--accent);background:var(--surface);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
@@ -422,7 +425,7 @@ async function deleteCard(f){
 
 let S={projects:[],features:[]};
 let live=false, dirty=false, pendingPark=null;
-let P={mode:'table',group:'status',density:'comfy',hidden:['files'],hideDone:false};
+let P={mode:'table',group:'status',density:'comfy',hidden:['files'],hideDone:false,collapsed:['idea']};
 try{Object.assign(P,JSON.parse(localStorage.getItem(KEY+'.prefs'))||{})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem(KEY+'.prefs',JSON.stringify(P))}catch(e){}};
 let view='home', query='', openId=null, sort={k:'updated',dir:1}, filter='all', addingProject=false;
@@ -442,7 +445,10 @@ function progress(f){
   if(f.steps.length) return Math.round(100*f.steps.filter(s=>s.done).length/f.steps.length);
   return {idea:0,active:20,parked:20,review:80}[f.status]||0;
 }
-const avgProg=fs=>fs.length?Math.round(fs.reduce((a,f)=>a+progress(f),0)/fs.length):0;
+/* Ideas are not work yet: counting them at 0% would make a good brainstorm
+   look like the project went backwards. */
+const committed=fs=>fs.filter(f=>f.status!=='idea');
+const avgProg=fs=>{const c=committed(fs);return c.length?Math.round(c.reduce((a,f)=>a+progress(f),0)/c.length):0};
 const progBar=f=>{const pg=progress(f);return `<div class="prog"><div class="track"><div class="fill" style="width:${pg}%;background:${color(f.status)}"></div></div><span class="pct">${pg}%</span></div>`};
 const stale=f=>f.status==='parked'&&Date.now()-f.updatedAt>3*D;
 function toast(t){const el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),1900)}
@@ -564,8 +570,10 @@ function renderTable(fs,isHome){
   const th=c=>`<th style="width:${c.w}px">${c.sort?`<button data-sort="${c.sort}">${c.label}${sort.k===c.sort?`<span class="arr">${sort.dir>0?'↑':'↓'}</span>`:''}</button>`:c.label}</th>`;
   let rows=composerRow(cols,isHome);
   for(const g of groupsOf(sortFs(fs),isHome)){
-    if(g.id) rows+=`<tr class="grp"><td colspan="${cols.length}">${g.head} · ${g.items.length} <span class="mono" style="margin-left:8px;font-weight:400">${avgProg(g.items)}% avg</span></td></tr>`;
-    for(const f of g.items) rows+=`<tr data-row="${f.id}" class="${f.status==='parked'?'is-parked':''} ${f.status==='done'?'is-done':''}">${cols.map(c=>cell(c,f)).join('')}</tr>`;
+    const shut=g.id&&(P.collapsed||[]).includes(g.id);
+    if(g.id) rows+=`<tr class="grp"><td colspan="${cols.length}"><button class="grp-toggle" data-grp="${g.id}" aria-expanded="${!shut}">${shut?'▸':'▾'}</button>${g.head} · ${g.items.length}${g.id==='idea'?'':` <span class="mono" style="margin-left:8px;font-weight:400">${avgProg(g.items)}% avg</span>`}${shut?` <span class="grp-peek">${g.items.slice(0,4).map(f=>esc(f.title)).join(' · ')}${g.items.length>4?` · +${g.items.length-4}`:''}</span>`:''}</td></tr>`;
+    if(shut) continue;
+    for(const f of g.items) rows+=`<tr data-row="${f.id}" class="${f.status==='parked'?'is-parked':''} ${f.status==='done'?'is-done':''} ${f.status==='idea'?'is-idea':''}">${cols.map(c=>cell(c,f)).join('')}</tr>`;
   }
   if(!fs.length) rows+=`<tr><td colspan="${cols.length}" class="empty">No features match. Add one in the row above.</td></tr>`;
   const minW=cols.reduce((a,c)=>a+c.w,0);
@@ -654,6 +662,8 @@ function bindPage(){
   if($('groupSel')) $('groupSel').onchange=e=>{P.group=e.target.value;savePrefs();render()};
   if($('densSel')) $('densSel').onchange=e=>{P.density=e.target.value;savePrefs();render()};
   $('hideDone').onchange=e=>{P.hideDone=e.target.checked;savePrefs();render()};
+  document.querySelectorAll('[data-grp]').forEach(b=>b.onclick=()=>{const id=b.dataset.grp;
+    P.collapsed=(P.collapsed||[]).includes(id)?P.collapsed.filter(x=>x!==id):[...(P.collapsed||[]),id];savePrefs();render()});
   document.querySelectorAll('[data-col]').forEach(c=>c.onchange=()=>{const id=c.dataset.col;P.hidden=c.checked?P.hidden.filter(x=>x!==id):[...P.hidden,id];savePrefs();render();document.querySelector('details.cols')?.setAttribute('open','')});
   $('newBtn').onclick=()=>{if(P.mode!=='table'){P.mode='table';savePrefs();render()}$('cTitle').focus()};
   if(p) $('showJson').onclick=()=>api('/api/projects/'+p.id+'/board')

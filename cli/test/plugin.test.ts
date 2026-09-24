@@ -69,6 +69,13 @@ describe("skill and commands", () => {
     for (const status of ["idea", "active", "parked", "review", "done"]) expect(body).toContain(status);
   });
 
+  it("says what to do with a brainstorm: nothing, until it reaches a decision", () => {
+    const body = read("skills/loose-ends/SKILL.md");
+    expect(body).toContain("Talk is not work");
+    expect(body).toContain("Want these on the board as ideas?");
+    expect(body).toContain("don't ask again this session");
+  });
+
   it("gives every command a description and only refers to real board commands", () => {
     const files = fs.readdirSync(path.join(repo, "commands"));
     expect(files.sort()).toEqual(["board.md", "done.md", "park.md"]);
