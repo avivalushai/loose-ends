@@ -15,7 +15,8 @@
     "bundle": "esbuild cli/src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=bin/board.cjs --define:import.meta.url=__filename --log-level=warning && chmod +x bin/board bin/board.cjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "board": "node bin/board"
+    "board": "node bin/board",
+    "plugin:sync": "claude plugin uninstall loose-ends@loose-ends >/dev/null 2>&1; claude plugin install loose-ends@loose-ends"
   },
   "devDependencies": {
     "@types/node": "^20.19.43",

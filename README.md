@@ -24,13 +24,29 @@ npm install && npm run build && npm test
 
 Opens http://localhost:4747 — every registered project, live-updating as Claude writes.
 
-## Install the plugin (local, before it's on GitHub)
+## Install the plugin
 
-In Claude Code, from any project:
+In Claude Code:
 
 ```
-/plugin marketplace add ~/Projects/loose-ends
+/plugin marketplace add avivalushai/loose-ends
 /plugin install loose-ends@loose-ends
 ```
 
-Then `/loose-ends:board status`, `/loose-ends:park`, `/loose-ends:done`.
+Then `/loose-ends:board`, `/loose-ends:park`, `/loose-ends:done`.
+
+## Working on the skill or the hooks
+
+Those two live in the plugin, so a running Claude Code uses its installed copy,
+not this folder. While developing, point the marketplace at this directory:
+
+```
+claude plugin marketplace add ~/Projects/loose-ends
+```
+
+After that, `npm run plugin:sync` reinstalls from the working tree — no commit,
+no push, no version bump — and the next session picks it up. Switch back with
+`claude plugin marketplace add avivalushai/loose-ends` to test what a real
+install gets.
+
+The UI, server and CLI need none of this: they run from this folder.
