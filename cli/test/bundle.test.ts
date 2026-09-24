@@ -32,7 +32,7 @@ describe("bundled bin/board", () => {
       env: { ...process.env, ...sb.env, PATH: `${path.join(repo, "bin")}:${process.env.PATH}` } as NodeJS.ProcessEnv,
       encoding: "utf8",
     });
-    expect(out.trim()).toBe("0.1.0");
+    expect(out.trim()).toBe("0.1.1");
   });
 
   it("runs a real init → add → context cycle in a temp project", () => {
