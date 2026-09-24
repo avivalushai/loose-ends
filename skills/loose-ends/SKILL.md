@@ -69,6 +69,25 @@ to add later, a wrong one costs trust in every row on the board.
 
 Never offer in the middle of work. Wait until the discussion is done.
 
+## Plans and specs
+
+A planning document is not a board, but it usually contains one. When the user
+has written a plan, a spec or a feature list and asks for it on the board — or
+when they've clearly just finished planning and the board is empty — offer to
+turn it into cards:
+
+`From docs/plan.md — 6 features: …. 2 already on the board. Add the other 4 as ideas?`
+
+Rules that keep it useful:
+
+- Extract only what would be user-visible work. Background, reasoning and open
+  questions belong in the doc, not on the board.
+- Check `board list --all --json` first and skip what's already there, matching
+  on meaning rather than exact titles. Plans get re-read; cards must not double.
+- Add each with `--file <the doc>` so the card points back at the reasoning.
+- Never edit the document to match the board. The doc holds the thinking; the
+  board holds the state.
+
 ## Statuses
 
 `idea` · `active` · `parked` · `review` · `done`

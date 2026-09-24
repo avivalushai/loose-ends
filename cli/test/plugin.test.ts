@@ -69,6 +69,14 @@ describe("skill and commands", () => {
     for (const status of ["idea", "active", "parked", "review", "done"]) expect(body).toContain(status);
   });
 
+  it("says how to turn a plan document into cards without duplicating them", () => {
+    const body = read("skills/loose-ends/SKILL.md");
+    expect(body).toContain("A planning document is not a board");
+    expect(body).toContain("skip what's already there");
+    expect(body).toContain("--file <the doc>");
+    expect(read("commands/plan.md")).toContain("board list --all --json");
+  });
+
   it("says what to do with a brainstorm: nothing, until it reaches a decision", () => {
     const body = read("skills/loose-ends/SKILL.md");
     expect(body).toContain("Talk is not work");
@@ -78,7 +86,7 @@ describe("skill and commands", () => {
 
   it("gives every command a description and only refers to real board commands", () => {
     const files = fs.readdirSync(path.join(repo, "commands"));
-    expect(files.sort()).toEqual(["board.md", "done.md", "park.md"]);
+    expect(files.sort()).toEqual(["board.md", "done.md", "park.md", "plan.md"]);
     const known = /board (ui|init|context|list|show|add|update|step|park|review|done|merge|touch)\b/g;
     for (const f of files) {
       const text = read(`commands/${f}`);

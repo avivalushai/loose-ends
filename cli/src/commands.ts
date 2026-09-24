@@ -200,7 +200,7 @@ export function add(ctx: Ctx, { pos, opts }: Args) {
       note,
       doneWhen: list(opts, "done-when"),
       steps: list(opts, "step").map((text) => ({ text, done: false })),
-      files: [],
+      files: projectFiles(loc.root, ctx.cwd, list(opts, "file")),
       createdAt: at,
       updatedAt: at,
       updatedBy: by,
@@ -223,7 +223,7 @@ export function update(ctx: Ctx, { pos, opts }: Args) {
   const note = str(opts, "note") ?? str(opts, "next");
   const doneWhen = list(opts, "done-when");
   if (title === "") throw new UserError("title can't be empty");
-  if (!status && !type && title === undefined && note === undefined && !doneWhen.length)
+  if (!status && !type && title === undefined && note === undefined && !doneWhen.length && !list(opts, "file").length)
     throw new UserError("nothing to update (use --title, --note, --status, --type or --done-when)");
 
   const f = mutateBoard(requireBoard(ctx), (b) => {
@@ -240,6 +240,11 @@ export function update(ctx: Ctx, { pos, opts }: Args) {
     if (doneWhen.length) {
       f.doneWhen = doneWhen;
       logs.push("Updated done-when");
+    }
+    const added = projectFiles(requireBoard(ctx).root, ctx.cwd, list(opts, "file")).filter((x) => !f.files.includes(x));
+    if (added.length) {
+      f.files.push(...added);
+      logs.push(`Files: ${added.join(", ")}`);
     }
     if (status && status !== f.status) {
       setStatus(ctx, f, status, by, note);
@@ -332,6 +337,16 @@ export function merge(ctx: Ctx, { pos, opts }: Args) {
   emit(ctx, opts, into, `Merged ${from.key} into ${into.key} ${into.title}`);
 }
 
+/** Paths inside the project, relative and de-duplicated. Anything outside it is dropped. */
+export function projectFiles(root: string, cwd: string, paths: string[]): string[] {
+  const rels = paths
+    .map((p) => path.relative(root, path.resolve(cwd, p)))
+    .filter((r) => r && !r.startsWith("..") && !path.isAbsolute(r))
+    .map((r) => r.split(path.sep).join("/"))
+    .filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
+  return [...new Set(rels)];
+}
+
 /** Attach files to the active card. Silent no-op when there is nothing to do — hooks call this on every edit. */
 export function touch(ctx: Ctx, { pos, opts }: Args) {
   if (!pos.length) throw new UserError("missing file(s)");
@@ -339,11 +354,7 @@ export function touch(ctx: Ctx, { pos, opts }: Args) {
   const nothing = (why: string) => (opts.json ? ctx.out(JSON.stringify({ card: null, added: [], reason: why })) : undefined);
   if (!loc) return nothing("no board");
 
-  const rels = pos
-    .map((p) => path.relative(loc.root, path.resolve(ctx.cwd, p)))
-    .filter((r) => r && !r.startsWith("..") && !path.isAbsolute(r))
-    .map((r) => r.split(path.sep).join("/"))
-    .filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
+  const rels = projectFiles(loc.root, ctx.cwd, pos);
   if (!rels.length) return nothing("no files inside the project");
 
   const probe = activeFeature(readBoard(loc.file));

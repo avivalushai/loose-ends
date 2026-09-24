@@ -7,7 +7,7 @@
   "settings": {
     "granularity": "normal"
   },
-  "nextNum": 14,
+  "nextNum": 15,
   "features": [
     {
       "key": "LE-1",
@@ -325,10 +325,12 @@
         "server/src/discover.ts",
         "cli/test/discover.test.ts",
         "server/src/api.ts",
-        "cli/test/server.test.ts"
+        "cli/test/server.test.ts",
+        "cli/src/commands.ts",
+        "cli/src/cli.ts"
       ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-24T13:19:47Z",
+      "updatedAt": "2026-09-24T13:39:24Z",
       "updatedBy": "claude",
       "log": [
         {
@@ -529,6 +531,28 @@
       "log": [
         {
           "at": "2026-09-24T13:19:47Z",
+          "by": "claude",
+          "text": "Created — review"
+        }
+      ]
+    },
+    {
+      "key": "LE-14",
+      "title": "Turn a plan document into cards",
+      "type": "feature",
+      "status": "review",
+      "note": "New /loose-ends:plan command plus --file on add/update, so cards point back at the doc they came from. Try it on a real spec and see if the extraction reads right",
+      "doneWhen": [],
+      "steps": [],
+      "files": [
+        "commands/plan.md"
+      ],
+      "createdAt": "2026-09-24T13:39:24Z",
+      "updatedAt": "2026-09-24T13:39:24Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T13:39:24Z",
           "by": "claude",
           "text": "Created — review"
         }

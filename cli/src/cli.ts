@@ -26,13 +26,13 @@ const COMMANDS: Record<string, Command> = {
   list: { usage: "list [--status parked[,review]] [--type bug] [--all]", options: { status: s, type: s, all: flag }, run: cmd.listCmd },
   show: { usage: "show LOOP-3", options: {}, run: cmd.show },
   add: {
-    usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]...`,
-    options: { status: s, type: s, next: s, note: s, step: many, "done-when": many },
+    usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]... [--file path]...`,
+    options: { status: s, type: s, next: s, note: s, step: many, "done-when": many, file: many },
     run: cmd.add,
   },
   update: {
-    usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]...",
-    options: { title: s, note: s, next: s, status: s, type: s, "done-when": many },
+    usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]... [--file path]...",
+    options: { title: s, note: s, next: s, status: s, type: s, "done-when": many, file: many },
     run: cmd.update,
   },
   step: { usage: `step LOOP-3 "Render buffer"|2 [--done|--undone|--remove]`, options: { done: flag, undone: flag, remove: flag }, run: cmd.step },

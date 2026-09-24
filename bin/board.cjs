@@ -1075,7 +1075,7 @@ function add(ctx, { pos, opts }) {
       note,
       doneWhen: list(opts, "done-when"),
       steps: list(opts, "step").map((text) => ({ text, done: false })),
-      files: [],
+      files: projectFiles(loc.root, ctx.cwd, list(opts, "file")),
       createdAt: at,
       updatedAt: at,
       updatedBy: by,
@@ -1097,7 +1097,7 @@ function update(ctx, { pos, opts }) {
   const note = str2(opts, "note") ?? str2(opts, "next");
   const doneWhen = list(opts, "done-when");
   if (title === "") throw new UserError("title can't be empty");
-  if (!status && !type && title === void 0 && note === void 0 && !doneWhen.length)
+  if (!status && !type && title === void 0 && note === void 0 && !doneWhen.length && !list(opts, "file").length)
     throw new UserError("nothing to update (use --title, --note, --status, --type or --done-when)");
   const f = mutateBoard(requireBoard(ctx), (b) => {
     const f2 = findFeature(b, keyArg);
@@ -1113,6 +1113,11 @@ function update(ctx, { pos, opts }) {
     if (doneWhen.length) {
       f2.doneWhen = doneWhen;
       logs.push("Updated done-when");
+    }
+    const added = projectFiles(requireBoard(ctx).root, ctx.cwd, list(opts, "file")).filter((x) => !f2.files.includes(x));
+    if (added.length) {
+      f2.files.push(...added);
+      logs.push(`Files: ${added.join(", ")}`);
     }
     if (status && status !== f2.status) {
       setStatus(ctx, f2, status, by, note);
@@ -1194,12 +1199,16 @@ function merge(ctx, { pos, opts }) {
   });
   emit(ctx, opts, into, `Merged ${from.key} into ${into.key} ${into.title}`);
 }
+function projectFiles(root, cwd, paths) {
+  const rels = paths.map((p) => import_node_path9.default.relative(root, import_node_path9.default.resolve(cwd, p))).filter((r) => r && !r.startsWith("..") && !import_node_path9.default.isAbsolute(r)).map((r) => r.split(import_node_path9.default.sep).join("/")).filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
+  return [...new Set(rels)];
+}
 function touch(ctx, { pos, opts }) {
   if (!pos.length) throw new UserError("missing file(s)");
   const loc = findBoard(ctx.cwd);
   const nothing = (why) => opts.json ? ctx.out(JSON.stringify({ card: null, added: [], reason: why })) : void 0;
   if (!loc) return nothing("no board");
-  const rels = pos.map((p) => import_node_path9.default.relative(loc.root, import_node_path9.default.resolve(ctx.cwd, p))).filter((r) => r && !r.startsWith("..") && !import_node_path9.default.isAbsolute(r)).map((r) => r.split(import_node_path9.default.sep).join("/")).filter((r) => r !== BOARD_DIR && !r.startsWith(BOARD_DIR + "/"));
+  const rels = projectFiles(loc.root, ctx.cwd, pos);
   if (!rels.length) return nothing("no files inside the project");
   const probe = activeFeature(readBoard(loc.file));
   if (!probe || rels.every((r) => probe.files.includes(r))) return nothing(probe ? "already attached" : "no active card");
@@ -1411,13 +1420,13 @@ var init_cli = __esm({
       list: { usage: "list [--status parked[,review]] [--type bug] [--all]", options: { status: s, type: s, all: flag }, run: listCmd },
       show: { usage: "show LOOP-3", options: {}, run: show },
       add: {
-        usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]...`,
-        options: { status: s, type: s, next: s, note: s, step: many, "done-when": many },
+        usage: `add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]... [--file path]...`,
+        options: { status: s, type: s, next: s, note: s, step: many, "done-when": many, file: many },
         run: add
       },
       update: {
-        usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]...",
-        options: { title: s, note: s, next: s, status: s, type: s, "done-when": many },
+        usage: "update LOOP-3 [--title ...] [--note ...] [--status ...] [--type ...] [--done-when ...]... [--file path]...",
+        options: { title: s, note: s, next: s, status: s, type: s, "done-when": many, file: many },
         run: update
       },
       step: { usage: `step LOOP-3 "Render buffer"|2 [--done|--undone|--remove]`, options: { done: flag, undone: flag, remove: flag }, run: step },

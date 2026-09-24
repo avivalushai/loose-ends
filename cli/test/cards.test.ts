@@ -100,6 +100,28 @@ describe("board list / show", () => {
   });
 });
 
+describe("attaching the source of a card", () => {
+  it("records where a card came from, with --file on add", () => {
+    const sb = withBoard();
+    const f = sb.json("add", "Favourites list", "--status", "idea", "--file", "docs/plan.md", "--file", "docs/plan.md");
+    expect(f.files).toEqual(["docs/plan.md"]); // de-duplicated
+  });
+
+  it("appends files on update instead of replacing them", () => {
+    const sb = withBoard();
+    sb.board("add", "Favourites list", "--file", "docs/plan.md");
+    const f = sb.json("update", "APP-1", "--file", "src/favourites.ts", "--file", "docs/plan.md");
+    expect(f.files).toEqual(["docs/plan.md", "src/favourites.ts"]);
+    expect(f.log.at(-1).text).toBe("Files: src/favourites.ts");
+  });
+
+  it("ignores paths outside the project and the board's own folder", () => {
+    const sb = withBoard();
+    const f = sb.json("add", "X", "--file", "../outside.md", "--file", ".board/board.json", "--file", "docs/ok.md");
+    expect(f.files).toEqual(["docs/ok.md"]);
+  });
+});
+
 describe("board update", () => {
   it("changes fields and logs what happened", () => {
     const sb = withBoard();

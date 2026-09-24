@@ -65,7 +65,7 @@ describe("cli surface", () => {
       expect(helpText()).toContain(`board ${cmd}`);
     expect(sb.board().out).toContain("board — the Loose Ends feature board");
     expect(sb.board("help").code).toBe(0);
-    expect(sb.board("add", "--help").out).toBe(`usage: board add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]...`);
+    expect(sb.board("add", "--help").out).toBe(`usage: board add "Title" [--status active] [--type bug] [--next "..."] [--step "..."]... [--done-when "..."]... [--file path]...`);
   });
 
   it("rejects unknown commands and unknown flags", () => {
