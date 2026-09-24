@@ -80,7 +80,7 @@ export function run(argv: string[], ctx: Ctx): number {
     return 0;
   }
   if (name === "--version" || name === "-v") {
-    ctx.out("0.1.1");
+    ctx.out("0.2.0");
     return 0;
   }
   const command = COMMANDS[name];
