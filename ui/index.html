@@ -243,6 +243,14 @@ dialog pre{margin:0;padding:16px;max-height:60vh;overflow:auto;font-family:var(-
 .grid tbody tr{cursor:default}
 .grid tbody tr[data-row]:hover td{background:color-mix(in srgb,var(--sunk) 70%,var(--surface))}
 .grid tbody tr[data-row]{cursor:pointer}
+.grid td.notecell{color:var(--muted);max-width:0}
+.grid td.notecell .txt{display:inline-block;max-width:calc(100% - 22px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+.grid td.notecell .pencil{opacity:0;background:none;border:0;padding:2px 4px;margin-left:4px;color:var(--muted);cursor:pointer;vertical-align:middle;border-radius:4px}
+.grid tr:hover td.notecell .pencil{opacity:.6}
+.grid td.notecell .pencil:hover{opacity:1;color:var(--accent);background:var(--sunk)}
+.grid td.notecell .pencil:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px}
+.grid td.notecell.parked{color:var(--s-parked)}
+.grid td.notecell .ph{opacity:.45}
 .grid tbody tr[data-row]:hover td{background:var(--hover,rgba(47,91,255,.04))}
 .grid tr.is-parked td:first-child{box-shadow:inset 3px 0 0 var(--s-parked)}
 .grid tr.is-done .cell-in.title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
@@ -444,7 +452,7 @@ let live=false, dirty=false, pendingPark=null;
 let P={mode:'table',group:'status',density:'comfy',hidden:['files'],hideDone:false,collapsed:['idea']};
 try{Object.assign(P,JSON.parse(localStorage.getItem(KEY+'.prefs'))||{})}catch(e){}
 const savePrefs=()=>{try{localStorage.setItem(KEY+'.prefs',JSON.stringify(P))}catch(e){}};
-let view='home', query='', openId=null, sort={k:'updated',dir:1}, filter='all', addingProject=false;
+let view='home', query='', openId=null, sort={k:'updated',dir:1}, filter='all', addingProject=false, editingNote=null;
 let comp={project:null,status:'idea'};
 const $=id=>document.getElementById(id);
 
@@ -565,7 +573,11 @@ function cell(c,f){
     case 'project': return `<td><span class="projcell">${pbadge(pr,true)}${esc(pr.name)}</span></td>`;
     case 'title': return `<td><input class="cell-in title" data-edit="title" data-id="${f.id}" value="${esc(f.title)}" aria-label="Feature title"></td>`;
     case 'status': return `<td><span class="sel ${f.status}"><select class="status ${f.status}" data-edit="status" data-id="${f.id}" aria-label="Status">${STATUSES.map(s=>`<option value="${s.id}" ${s.id===f.status?'selected':''}>${s.label}</option>`).join('')}</select></span></td>`;
-    case 'note': return `<td><input class="cell-in note" data-edit="note" data-id="${f.id}" value="${esc(f.note)}" placeholder="${f.status==='parked'?'Where did you stop?':f.status==='done'?'':'Next step'}" aria-label="Next step"></td>`;
+    case 'note': {
+      const ph=f.status==='parked'?'Where did you stop?':f.status==='done'?'':'Next step';
+      if(editingNote===f.id) return `<td class="notecell editing"><input class="cell-in note" data-edit="note" data-id="${f.id}" value="${esc(f.note)}" placeholder="${ph}" aria-label="Next step or where you stopped"></td>`;
+      return `<td class="notecell ${f.status}"><span class="txt">${f.note?esc(f.note):`<span class="ph">${ph}</span>`}</span><button class="pencil" data-editnote="${f.id}" aria-label="Edit note" title="Edit note"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="currentColor" d="M11.5 1.6 14.4 4.5 5.9 13H3v-2.9zM12.9.2a1 1 0 0 1 1.4 0l1.5 1.5a1 1 0 0 1 0 1.4l-1 1L11.9 1.2z"/></svg></button></td>`;
+    }
     case 'progress': return `<td>${progBar(f)}</td>`;
     case 'steps': return `<td class="steps">${f.steps.length?`${f.steps.filter(s=>s.done).length}/${f.steps.length}`:'—'}</td>`;
     case 'files': return `<td class="steps">${f.files.length||'—'}</td>`;
@@ -603,7 +615,7 @@ function renderTable(fs,isHome){
   if(!fs.length) rows+=`<tr><td colspan="${cols.length}" class="empty">No features match. Add one in the row above.</td></tr>`;
   const minW=cols.reduce((a,c)=>a+c.w,0);
   return `<div class="tbl-wrap grid ${P.density==='compact'?'compact':''}"><table style="min-width:${minW}px"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
-  <p class="hint">Click a row to open its card — steps, files and activity. Titles, status and notes are editable in place.</p>`;
+  <p class="hint">Click a row to open its card. Titles and status are editable here; hover a note and click the pencil to change it.</p>`;
 }
 
 /* ---------- board ---------- */
@@ -658,6 +670,11 @@ function render(){
   $('mainEl').innerHTML=renderPage();
   bindPage();
   renderDrawer();
+  if(editingNote){
+    const n=document.querySelector(`[data-edit="note"][data-id="${editingNote}"]`);
+    const idle=!document.activeElement||document.activeElement===document.body;
+    if(n&&idle){n.focus();n.setSelectionRange(n.value.length,n.value.length)}
+  }
 }
 async function setStatus(id,status){
   const f=S.features.find(x=>x.id===id); if(!f||f.status===status) return;
@@ -716,11 +733,17 @@ function bindPage(){
       const f=S.features.find(x=>x.id===el.dataset.id); if(!f) return; const k=el.dataset.edit, v=el.value.trim();
       if(k==='status'){setStatus(f.id,v).then(()=>toast(fkey(f)+' → '+SL[v]));return}
       if(k==='title'&&!v){el.value=f.title;return}
-      if(v===f[k]) return;
+      if(v===f[k]){editingNote=null;return}
+      editingNote=null;
       saveCard(f,{[k]:v}).then(ok=>ok&&toast('Saved'));
     });
   });
   // row click opens card (except on controls)
+  document.querySelectorAll('[data-editnote]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); editingNote=b.dataset.editnote; render();
+    const n=document.querySelector(`[data-edit="note"][data-id="${editingNote}"]`);
+    if(n){n.focus();n.select()}
+  });
   document.querySelectorAll('tr[data-row]').forEach(tr=>tr.addEventListener('click',e=>{
     if(e.target.closest('input,select,button,textarea,label,a')) return;   // editing, not opening
     openId=tr.dataset.row; renderDrawer();
@@ -801,7 +824,18 @@ document.addEventListener('click',e=>{
   const o=e.target.closest('[data-open]'); if(o&&!e.target.closest('.drawer')){openId=o.dataset.open;renderDrawer();return}
   const d=document.querySelector('details.cols[open]'); if(d&&!e.target.closest('details.cols')) d.removeAttribute('open');
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&openId&&!$('dlg').open){openId=null;render()}});
+/* Leaving the note field — by blur, Escape or clicking away — puts it back to text. */
+document.addEventListener('focusout',e=>{
+  if(!editingNote||e.target?.dataset?.edit!=='note') return;
+  setTimeout(()=>{if(editingNote&&document.activeElement?.dataset?.edit!=='note'){editingNote=null;render()}},0);
+});
+document.addEventListener('mousedown',e=>{
+  if(editingNote&&!e.target.closest('td.notecell.editing')){editingNote=null;render()}
+},true);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&editingNote){editingNote=null;render();return}
+  if(e.key==='Escape'&&openId&&!$('dlg').open){openId=null;render()}
+});
 $('dlgClose').onclick=()=>$('dlg').close();
 $('dlgCopy').onclick=async()=>{try{await navigator.clipboard.writeText($('dlgPre').textContent);toast('Copied')}catch(e){const r=document.createRange();r.selectNodeContents($('dlgPre'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected — press ⌘C to copy')}};
 $('refreshBtn').onclick=()=>reload().then(()=>toast('Refreshed'));

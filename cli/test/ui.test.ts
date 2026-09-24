@@ -48,6 +48,14 @@ describe("the bundled UI", () => {
     expect(script).not.toContain("addEventListener('dblclick'");
   });
 
+  it("shows the note as text, with a pencil to edit it", () => {
+    expect(script).toContain('data-editnote=');
+    expect(script).toContain("editingNote===f.id");
+    // a re-render leaves the field unfocused, so a click outside has to close it too
+    expect(script).toContain("addEventListener('mousedown'");
+    expect(script).toContain("if(editingNote){");
+  });
+
   it("tells the user how to add a project instead of faking one", () => {
     expect(script).toContain("board init");
     expect(script).not.toContain("S.projects.push(");
