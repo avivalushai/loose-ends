@@ -42,6 +42,12 @@ describe("the bundled UI", () => {
     expect(script).toContain("data-grp=");
   });
 
+  it("opens a card on a row click, without stealing clicks meant for editing", () => {
+    expect(script).toContain("addEventListener('click'");
+    expect(script).toContain("if(e.target.closest('input,select,button,textarea,label,a')) return;");
+    expect(script).not.toContain("addEventListener('dblclick'");
+  });
+
   it("tells the user how to add a project instead of faking one", () => {
     expect(script).toContain("board init");
     expect(script).not.toContain("S.projects.push(");

@@ -242,6 +242,8 @@ dialog pre{margin:0;padding:16px;max-height:60vh;overflow:auto;font-family:var(-
 .grid td{padding:6px 10px;height:44px}
 .grid tbody tr{cursor:default}
 .grid tbody tr[data-row]:hover td{background:color-mix(in srgb,var(--sunk) 70%,var(--surface))}
+.grid tbody tr[data-row]{cursor:pointer}
+.grid tbody tr[data-row]:hover td{background:var(--hover,rgba(47,91,255,.04))}
 .grid tr.is-parked td:first-child{box-shadow:inset 3px 0 0 var(--s-parked)}
 .grid tr.is-done .cell-in.title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--faint)}
 .grid tr.is-idea .prog,.grid tr.is-idea .steps{opacity:.3}
@@ -601,7 +603,7 @@ function renderTable(fs,isHome){
   if(!fs.length) rows+=`<tr><td colspan="${cols.length}" class="empty">No features match. Add one in the row above.</td></tr>`;
   const minW=cols.reduce((a,c)=>a+c.w,0);
   return `<div class="tbl-wrap grid ${P.density==='compact'?'compact':''}"><table style="min-width:${minW}px"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${rows}</tbody></table></div>
-  <p class="hint">Edit any cell in place. Click a key or double-click a row to open the full card with steps, files and activity.</p>`;
+  <p class="hint">Click a row to open its card — steps, files and activity. Titles, status and notes are editable in place.</p>`;
 }
 
 /* ---------- board ---------- */
@@ -719,7 +721,10 @@ function bindPage(){
     });
   });
   // row click opens card (except on controls)
-  document.querySelectorAll('tr[data-row]').forEach(tr=>tr.addEventListener('dblclick',e=>{if(!e.target.closest('input,select,button')){openId=tr.dataset.row;renderDrawer()}}));
+  document.querySelectorAll('tr[data-row]').forEach(tr=>tr.addEventListener('click',e=>{
+    if(e.target.closest('input,select,button,textarea,label,a')) return;   // editing, not opening
+    openId=tr.dataset.row; renderDrawer();
+  }));
   // board drag
   document.querySelectorAll('.card').forEach(c=>{
     c.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/plain',c.dataset.id);c.classList.add('dragging')});
