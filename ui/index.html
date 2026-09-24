@@ -87,6 +87,11 @@ button{cursor:pointer}
 .side .side-foot{color:var(--side-muted)}
 .side .linkbtn{color:var(--side-muted)}
 .side .sample-tag{border-color:var(--side-muted);color:var(--side-muted)}
+.side .nav-item.unlinked{opacity:.55}
+.side .nav-item.unlinked:hover{opacity:1}
+.side .nav-item.unlinked .pkey.none{background:transparent;border:1px dashed var(--side-muted);color:var(--side-muted)}
+.side .nav-item.unlinked .add{font-size:11px;color:var(--side-muted);opacity:0}
+.side .nav-item.unlinked:hover .add{opacity:1}
 .side .sample-tag[data-state="live"]{border-style:solid;border-color:var(--s-done);color:var(--s-done)}
 .side .sample-tag[data-state="off"]{border-color:var(--s-parked);color:var(--s-parked)}
 .side .pkey.all{background:var(--accent);color:var(--accent-ink)}
@@ -395,7 +400,16 @@ async function loadAll(){
   const boards=await Promise.all(ps.map(p=>p.error?Promise.resolve(null):api('/api/projects/'+p.id+'/board').catch(()=>null)));
   S.features=[];
   boards.forEach((b,i)=>{ if(b) for(const c of b.features) S.features.push(toFeature(ps[i].id,c)) });
+  S.unlinked=await api('/api/discover').catch(()=>[]);
   if(view!=='home'&&!proj(view)) view='home';
+}
+
+/* Claude Code knows these folders; they just don't have a board yet. */
+async function createBoard(path,name){
+  try{
+    await api('/api/projects',{method:'POST',body:JSON.stringify({path,name})});
+    await loadAll(); render(); toast(name+' has a board now');
+  }catch(e){ toast(e.message) }
 }
 
 async function loadProject(id){
@@ -423,7 +437,7 @@ async function deleteCard(f){
   catch(e){ toast(e.message); return false }
 }
 
-let S={projects:[],features:[]};
+let S={projects:[],features:[],unlinked:[]};
 let live=false, dirty=false, pendingPark=null;
 let P={mode:'table',group:'status',density:'comfy',hidden:['files'],hideDone:false,collapsed:['idea']};
 try{Object.assign(P,JSON.parse(localStorage.getItem(KEY+'.prefs'))||{})}catch(e){}
@@ -467,7 +481,16 @@ function renderNav(){
       ${pbadge(p)}<span class="name">${esc(p.name)}</span>${pk?`<span class="pip" title="Parked">${pk}</span>`:'<span></span>'}
       <span class="mini" aria-hidden="true"><span style="width:${pr}%"></span></span></button>`;
   }
+  if(S.unlinked.length){
+    h+=`<div class="nav-label" style="margin-top:14px"><span>No board yet · ${S.unlinked.length}</span></div>`;
+    for(const u of S.unlinked.slice(0,8))
+      h+=`<button class="nav-item unlinked" data-init="${esc(u.path)}" title="${esc(u.path)}">
+        <span class="pkey none">+</span><span class="name">${esc(u.name)}</span><span class="add">Add board</span></button>`;
+    if(S.unlinked.length>8) h+=`<div class="nav-label"><span class="hint">+${S.unlinked.length-8} more</span></div>`;
+  }
   $('nav').innerHTML=h;
+  document.querySelectorAll('[data-init]').forEach(b=>b.onclick=()=>{
+    const u=S.unlinked.find(x=>x.path===b.dataset.init); if(u) createBoard(u.path,u.name)});
   $('addProjBtn').onclick=()=>openDialog('Add a project',
     'A project joins the board when it has one. In that project\'s folder, run:\n\n  board init\n\nOr open it in Claude Code and ask for a board — the plugin offers one on the first session.\nIt shows up here the moment the file exists.');
 }

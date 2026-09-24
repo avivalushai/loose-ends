@@ -1,4 +1,6 @@
+import fs from "node:fs";
 import http, { type Server } from "node:http";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { projectId } from "../../server/src/projects.js";
 import { listen } from "../../server/src/server.js";
@@ -222,5 +224,51 @@ describe("serving the UI and staying local", () => {
       req.end();
     });
     expect(status).toBe(403); // DNS rebinding: a public hostname pointed at 127.0.0.1
+  });
+});
+
+describe("adopting a project from the UI", () => {
+  /** A sandbox with a fake Claude Code history for a folder that has no board. */
+  const withHistory = () => {
+    const sb = sandbox();
+    sb.env.LOOSE_ENDS_CLAUDE_HOME = path.join(sb.home, "claude");
+    const dir = path.join(sb.env.LOOSE_ENDS_CLAUDE_HOME, "projects", "-encoded-name");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "s.jsonl"), JSON.stringify({ type: "user", cwd: sb.root }) + "\n");
+    return sb;
+  };
+
+  it("lists folders Claude Code worked in that have no board", async () => {
+    const sb = withHistory();
+    const { call } = await serve(sb);
+    const { status, body } = await call("/api/discover");
+    expect(status).toBe(200);
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({ path: sb.root, name: "My App" });
+  });
+
+  it("creates the board, after which the folder is a project and not a candidate", async () => {
+    const sb = withHistory();
+    const { call, post } = await serve(sb);
+    const { status, body } = await post("/api/projects", { path: sb.root, name: "Owl" });
+    expect(status).toBe(201);
+    expect(body).toMatchObject({ created: true, project: { name: "Owl" } });
+    expect(fs.existsSync(path.join(sb.root, ".board/board.json"))).toBe(true);
+
+    expect((await call("/api/discover")).body).toEqual([]);
+    expect((await call("/api/projects")).body.map((p: any) => p.name)).toEqual(["Owl"]);
+  });
+
+  it("refuses to create a board in a folder it wasn't told about", async () => {
+    const sb = withHistory();
+    const { post } = await serve(sb);
+    const outside = path.dirname(sb.root);
+    const r = await post("/api/projects", { path: outside });
+    expect(r.status).toBe(403);
+    expect(r.body.error).toContain("Claude Code has worked in");
+    expect(fs.existsSync(path.join(outside, ".board"))).toBe(false);
+
+    expect((await post("/api/projects", { path: "/etc" })).status).toBe(403);
+    expect((await post("/api/projects", {})).status).toBe(400);
   });
 });

@@ -7,7 +7,7 @@
   "settings": {
     "granularity": "normal"
   },
-  "nextNum": 12,
+  "nextNum": 13,
   "features": [
     {
       "key": "LE-1",
@@ -321,10 +321,14 @@
         "ui/index.html",
         "skills/loose-ends/SKILL.md",
         "cli/test/ui.test.ts",
-        "cli/test/plugin.test.ts"
+        "cli/test/plugin.test.ts",
+        "server/src/discover.ts",
+        "cli/test/discover.test.ts",
+        "server/src/api.ts",
+        "cli/test/server.test.ts"
       ],
       "createdAt": "2026-09-23T13:02:51Z",
-      "updatedAt": "2026-09-24T12:20:41Z",
+      "updatedAt": "2026-09-24T13:19:47Z",
       "updatedBy": "claude",
       "log": [
         {
@@ -505,6 +509,28 @@
           "at": "2026-09-24T12:20:26Z",
           "by": "claude",
           "text": "Created"
+        }
+      ]
+    },
+    {
+      "key": "LE-12",
+      "title": "Projects without a board show in the sidebar",
+      "type": "feature",
+      "status": "review",
+      "note": "Reads the cwd out of Claude Code's session files, filters out $HOME, dotfolders and scratch workspaces, and offers one-click adopt. Check the list matches what you'd expect",
+      "doneWhen": [
+        "Every project I actually work in is either on the board or one click from it"
+      ],
+      "steps": [],
+      "files": [],
+      "createdAt": "2026-09-24T13:19:47Z",
+      "updatedAt": "2026-09-24T13:19:47Z",
+      "updatedBy": "claude",
+      "log": [
+        {
+          "at": "2026-09-24T13:19:47Z",
+          "by": "claude",
+          "text": "Created — review"
         }
       ]
     }

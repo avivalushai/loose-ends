@@ -4,6 +4,7 @@
 import { run } from "../../cli/src/cli.js";
 import type { Ctx } from "../../cli/src/context.js";
 import type { Feature, Step } from "../../cli/src/schema.js";
+import { discoverProjects, isKnownProject } from "./discover.js";
 import { type Project, findProject, listProjects, loadBoard, summarize } from "./projects.js";
 
 export class HttpError extends Error {
@@ -89,12 +90,28 @@ export function handleApi(ctx: Ctx, req: ApiRequest): unknown | undefined {
   const { method, path } = req;
   const seg = path.replace(/^\/api\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
 
+  // GET /api/discover — folders Claude Code has worked in that have no board
+  if (seg[0] === "discover" && seg.length === 1) {
+    if (method !== "GET") throw new HttpError(405, "use GET");
+    return discoverProjects(ctx);
+  }
+
   if (seg[0] !== "projects") return undefined;
 
-  // GET /api/projects
+  // GET /api/projects · POST /api/projects (create a board in a known folder)
   if (seg.length === 1) {
-    if (method !== "GET") throw new HttpError(405, "use GET");
-    return listProjects(ctx).map(summarize);
+    if (method === "GET") return listProjects(ctx).map(summarize);
+    if (method !== "POST") throw new HttpError(405, "use GET or POST");
+
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const dir = str(b.path, "path");
+    // A page in a browser must not be able to write into any folder it names.
+    if (!isKnownProject(ctx, dir)) throw new HttpError(403, "that folder isn't a project Claude Code has worked in, or it already has a board");
+
+    const argv = ["init"];
+    for (const [flag, key] of [["--name", "name"], ["--key", "key"]] as const)
+      if (b[key] !== undefined && b[key] !== "") argv.push(flag, str(b[key], key));
+    return board(ctx, { id: "", name: "", key: "", path: dir, addedAt: "" }, argv);
   }
 
   const p = project(ctx, seg[1]!);
